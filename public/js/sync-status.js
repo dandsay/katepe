@@ -83,6 +83,14 @@ async function toggleArsip(id) {
 
     const isCurrentlyArsip = (item.hubungan_pengambil === "ARSIP");
 
+    // Bekukan (Lock) arsip untuk berkas yang SUDAH diserahterimakan:
+    // berkas yang sudah diterima warga tidak boleh diarsipkan karena
+    // akan menimpa data penerima & tanggal diterima.
+    if (!isCurrentlyArsip && item.tgl_ambil && String(item.tgl_ambil).trim() !== "") {
+        showToast("Berkas sudah diserahterimakan — tidak dapat diarsipkan.", "error");
+        return;
+    }
+
     if (isCurrentlyArsip) {
         if (!confirm(`Batalkan status ARSIP untuk berkas "${item.nama_decrypted}"?\nBerkas akan dikembalikan ke status Tersedia.`)) {
             return;

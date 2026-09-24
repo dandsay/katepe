@@ -430,6 +430,39 @@
     </div>
 
     <!-- 4. MODAL TAMBAH BERKAS BARU -->
+    <!-- 3.9 MODAL PERINGATAN DUPLIKAT AKTIF (Opsi A) -->
+    <div id="modalDuplikat" class="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 hidden backdrop-blur-xs">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-7 border border-amber-300 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-center gap-3 pb-4 border-b border-amber-100 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-slate-900 text-base leading-tight">Berkas Aktif Sudah Ada!</h3>
+                    <p class="text-xs text-slate-500 font-medium">NIK ini tercatat masih punya berkas yang belum dilaporkan diambil.</p>
+                </div>
+            </div>
+
+            <div id="duplikatList" class="space-y-2 mb-5 max-h-52 overflow-y-auto custom-scrollbar"></div>
+
+            <p class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-5 leading-relaxed">
+                <b>Pilih tindakan:</b><br>
+                &bull; <b>Buka berkas lama</b> — jika ini kasus yang sama (pengambilannya belum dilaporkan), periksa &amp; perbarui data lama.<br>
+                &bull; <b>Tetap input baru</b> — jika warga memang datang lagi untuk keperluan baru. Berkas lama otomatis diberi tanda <span class="font-bold text-amber-700">"Belum Lapor?"</span>.
+            </p>
+
+            <div class="flex flex-col gap-2">
+                <button type="button" onclick="batalCekDulu()" class="w-full py-3 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 font-bold rounded-xl transition text-sm">
+                    Batal, Saya Cek Dulu
+                </button>
+                <button type="button" id="btnForceNew" onclick="executeForceNew()" class="w-full py-3 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <i data-lucide="flag" class="w-4 h-4"></i>
+                    <span>Tetap Input Berkas Baru (Tandai Berkas Lama)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalTambah" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">

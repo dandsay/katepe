@@ -89,6 +89,13 @@ export async function handleGetBerkas(request, env, url) {
 }
 
 // 2. POST /api/berkas (Tambah Berkas Baru)
+//
+// Opsi A — Peringatan Duplikat Aktif (bukan blokir):
+//   Jika NIK yang diinput masih punya berkas aktif (tgl_ambil kosong),
+//   API membalas 409 + daftar berkas lama tersebut. Staf memutuskan:
+//   - Kirim ulang dengan flag "force_new: true"  -> berkas baru tetap dibuat,
+//     dan berkas lama diberi catatan_admin "KEMUNGKINAN SUDAH DIAMBIL (LUPA LAPOR)".
+//   - Batal -> tidak ada perubahan data.
 export async function handleCreateBerkas(request, env) {
     try {
         const body = await request.json();
@@ -106,7 +113,8 @@ export async function handleCreateBerkas(request, env) {
             status,
             kelahiran,
             keterangan,
-            sinkronisasi
+            sinkronisasi,
+            force_new
         } = body;
 
         // Jaring Pengaman Administrasi: Tanggal diambil tidak boleh lebih awal dari tanggal datang
@@ -115,6 +123,41 @@ export async function handleCreateBerkas(request, env) {
                 success: false,
                 error: `Jaring Pengaman Administrasi: Tanggal diambil (${tgl_ambil}) tidak boleh lebih awal dari tanggal berkas datang (${tgl_datang}).`
             }, 400);
+        }
+
+        // Opsi A: Deteksi berkas aktif (belum dilaporkan diambil) dengan NIK & jenis sama.
+        // Berkas lama yang sudah ARSIP tidak dianggap aktif.
+        if (nik_hash && jenis_berkas && force_new !== true) {
+            const { results: aktif } = await env.DB.prepare(`
+                SELECT id, tgl_datang, status, keterangan, sinkronisasi
+                FROM rekap_berkas
+                WHERE nik_hash = ? AND jenis_berkas = ?
+                  AND (tgl_ambil IS NULL OR tgl_ambil = '')
+                  AND hubungan_pengambil != 'ARSIP'
+                ORDER BY tgl_datang DESC, id DESC
+            `).bind(nik_hash, jenis_berkas).all();
+
+            if (aktif && aktif.length > 0) {
+                return jsonResponse({
+                    success: false,
+                    conflict: true,
+                    error: "NIK ini masih memiliki berkas aktif yang belum dilaporkan diambil.",
+                    existing: aktif
+                }, 409);
+            }
+        }
+
+        // Mode force_new: berkas lama (jika masih aktif) ditandai lupa lapor.
+        // Dilakukan SETELAH insert berhasil agar flag tidak tertulis saat insert gagal.
+        let oldActiveRows = [];
+        if (nik_hash && jenis_berkas && force_new === true) {
+            const { results } = await env.DB.prepare(`
+                SELECT id FROM rekap_berkas
+                WHERE nik_hash = ? AND jenis_berkas = ?
+                  AND (tgl_ambil IS NULL OR tgl_ambil = '')
+                  AND hubungan_pengambil != 'ARSIP'
+            `).bind(nik_hash, jenis_berkas).all();
+            oldActiveRows = results || [];
         }
 
         let nextNo = no_urut;
@@ -131,8 +174,8 @@ export async function handleCreateBerkas(request, env) {
 
         const insertQuery = `
             INSERT INTO rekap_berkas (
-                no_urut, tgl_datang, jenis_berkas, nik_hash, nik_encrypted, 
-                nama_encrypted, alamat_encrypted, rw, hubungan_pengambil, 
+                no_urut, tgl_datang, jenis_berkas, nik_hash, nik_encrypted,
+                nama_encrypted, alamat_encrypted, rw, hubungan_pengambil,
                 tgl_ambil, status, kelahiran, keterangan, sinkronisasi
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
@@ -154,7 +197,20 @@ export async function handleCreateBerkas(request, env) {
             sinkronisasi || "BELUM"
         ).run();
 
-        return jsonResponse({ success: true, id: result.meta?.last_row_id || null });
+        // Berkas baru berhasil tersimpan -> tandai berkas lama yang masih aktif.
+        const flaggedCount = oldActiveRows.length;
+        if (flaggedCount > 0) {
+            const ids = oldActiveRows.map(r => r.id);
+            const placeholders = ids.map(() => "?").join(", ");
+            await env.DB.prepare(`
+                UPDATE rekap_berkas
+                SET catatan_admin = 'BELUM DILAPORKAN: KEMUNGKINAN SUDAH DIAMBIL',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id IN (${placeholders})
+            `).bind(...ids).run();
+        }
+
+        return jsonResponse({ success: true, id: result.meta?.last_row_id || null, flagged_old: flaggedCount });
     } catch (err) {
         console.error("Error create berkas:", err);
         return jsonResponse({ success: false, error: "Gagal menyimpan berkas baru." }, 500);
@@ -243,6 +299,12 @@ export async function handleUpdateBerkas(request, env, id) {
 
         updates.push("updated_at = CURRENT_TIMESTAMP");
         params.push(id);
+
+        // Opsi A: Saat berkas dilaporkan diambil (tgl_ambil diisi), flag
+        // "lupa lapor" otomatis dikosongkan — berkasnya memang sudah diterima.
+        if (body.tgl_ambil !== undefined && body.tgl_ambil !== null && body.tgl_ambil !== "") {
+            updates.push("catatan_admin = ''");
+        }
 
         const updateQuery = `UPDATE rekap_berkas SET ${updates.join(", ")} WHERE id = ?`;
         await env.DB.prepare(updateQuery).bind(...params).run();

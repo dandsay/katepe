@@ -339,6 +339,18 @@ async function submitTambahBerkas(e) {
             body: JSON.stringify(payload)
         });
 
+        // Opsi A: 409 = berkas aktif dengan NIK & jenis sama sudah ada.
+        // Tampilkan modal peringatan; simpan payload untuk mode "Tetap Input Baru".
+        if (res.status === 409) {
+            const conflict = await res.json();
+            showDuplikatModal(conflict, payload, {
+                nama: nama,
+                nik: nik,
+                jenis: jenis
+            });
+            return;
+        }
+
         const data = await res.json();
         if (data.success) {
             closeModalTambah();
@@ -360,7 +372,8 @@ async function submitTambahBerkas(e) {
                 status: status,
                 kelahiran: nikInfo.formattedBirth,
                 keterangan: nikInfo.keterangan,
-                sinkronisasi: "BELUM"
+                sinkronisasi: "BELUM",
+                catatan_admin: ""
             };
 
             // Masukkan data baru ke paling depan allData & simpan cache
@@ -368,6 +381,17 @@ async function submitTambahBerkas(e) {
             if (typeof AppCache !== "undefined") {
                 AppCache.set(AppCache.getKey(), allData);
             }
+
+            // Berkas lama yang diberi flag oleh server -> perbarui tampilan lokal
+            if (data.flagged_old > 0) {
+                allData.forEach(d => {
+                    if (d.nik_hash === nikHash && d.jenis_berkas === jenis && d.id !== data.id &&
+                        (!d.tgl_ambil || d.tgl_ambil === "") && d.hubungan_pengambil !== "ARSIP") {
+                        d.catatan_admin = "BELUM DILAPORKAN: KEMUNGKINAN SUDAH DIAMBIL";
+                    }
+                });
+            }
+
             applyClientFilters(false);
             loadDatabaseStats(true);
             showToast("Berkas berhasil ditambahkan!", "success");
@@ -380,6 +404,190 @@ async function submitTambahBerkas(e) {
     } finally {
         btn.disabled = false;
         btn.innerText = "Simpan Berkas";
+    }
+}
+
+// ==========================================
+// 3.1 MODAL PERINGATAN DUPLIKAT AKTIF (Opsi A)
+// ==========================================
+let duplikatContext = null; // { payload, info, existingIds }
+
+function showDuplikatModal(conflict, payload, info) {
+    duplikatContext = {
+        payload,
+        info,
+        existingIds: (conflict.existing || []).map(r => r.id)
+    };
+    const listEl = document.getElementById("duplikatList");
+    if (listEl) {
+        listEl.innerHTML = (conflict.existing || []).map(row => {
+            const tgl = formatDate ? formatDate(row.tgl_datang) : row.tgl_datang;
+            return `
+            <div class="flex items-center justify-between gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+                <div class="min-w-0">
+                    <div class="font-bold text-slate-800 truncate">${info.nama}</div>
+                    <div class="text-slate-500 font-medium">Tgl Datang: ${tgl} &bull; ${row.keterangan || "-"}</div>
+                </div>
+                <span class="shrink-0 px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-amber-300 text-amber-700">${row.status || "-"}</span>
+            </div>`;
+        }).join("");
+    }
+    document.getElementById("modalTambah").classList.add("hidden");
+    document.getElementById("modalDuplikat").classList.remove("hidden");
+    lucide.createIcons();
+}
+
+// Tombol "Batal, Saya Cek Dulu": tutup modal, tempel NIK berkas lama ke
+// kolom pencarian agar tabel hanya menampilkan data NIK tersebut,
+// lalu highlight kedip barisnya.
+function batalCekDulu() {
+    if (!duplikatContext) {
+        document.getElementById("modalDuplikat").classList.add("hidden");
+        return;
+    }
+    const { existingIds } = duplikatContext;
+    const targetId = existingIds && existingIds.length > 0 ? existingIds[0] : null;
+
+    // Tutup seluruh modal agar tabel terlihat penuh
+    document.getElementById("modalDuplikat").classList.add("hidden");
+    document.getElementById("modalTambah").classList.add("hidden");
+    duplikatContext = null;
+
+    if (targetId) {
+        focusBerkasLama(targetId);
+    }
+}
+
+// Tampilkan tabel berfokus pada berkas tertentu: NIK ditempel ke kolom pencarian
+// (mode pencarian universal menampilkan semua berkas NIK itu), lalu lompat ke
+// halamannya dan beri highlight kedip.
+function focusBerkasLama(id) {
+    // Ambil NIK terdekripsi dari data yang sudah dimuat
+    const target = allData.find(d => d.id === id);
+    const nik = target ? (target.nik_decrypted || "") : "";
+
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput && nik) {
+        searchInput.value = nik;
+    } else if (searchInput) {
+        searchInput.value = "";
+    }
+
+    applyClientFilters(true);
+
+    // Lompat ke halaman yang memuat baris tersebut
+    const idx = filteredData.findIndex(d => d.id === id);
+    if (idx >= 0) {
+        const page = Math.floor(idx / pageSize) + 1;
+        if (page !== currentPage) {
+            changePage(page);
+        } else {
+            renderUI();
+        }
+    } else {
+        renderUI();
+    }
+
+    // Highlight kedip setelah render selesai
+    setTimeout(() => flashBerkasRow(id), 180);
+}
+
+function flashBerkasRow(id) {
+    const card = document.getElementById("mobile-card-" + id);
+    const rowEl = document.getElementById("berkas-row-" + id);
+    [card, rowEl].forEach(el => {
+        if (!el) return;
+        el.classList.add("dup-flash");
+        setTimeout(() => el.classList.remove("dup-flash"), 4200);
+    });
+    const target = card || rowEl;
+    if (target && target.scrollIntoView) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+}
+
+function closeModalDuplikat() {
+    document.getElementById("modalDuplikat").classList.add("hidden");
+    duplikatContext = null;
+    // Kembalikan fokus ke form tambah agar staf bisa memeriksa/koreksi input
+    document.getElementById("modalTambah").classList.remove("hidden");
+}
+
+async function executeForceNew() {
+    if (!duplikatContext) return;
+    const { payload } = duplikatContext;
+    const btn = document.getElementById("btnForceNew");
+    btn.disabled = true;
+    btn.innerText = "Menyimpan...";
+
+    try {
+        const res = await fetch("/api/berkas", {
+            method: "POST",
+            headers: getAuthHeaders({
+                "Content-Type": "application/json"
+            }),
+            body: JSON.stringify({ ...payload, force_new: true })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // Tutup modal duplikat DAN modal tambah
+            document.getElementById("modalDuplikat").classList.add("hidden");
+            duplikatContext = null;
+            closeModalTambah();
+
+            const p = payload;
+            const newRow = {
+                id: data.id,
+                no_urut: null,
+                tgl_datang: p.tgl_datang,
+                jenis_berkas: p.jenis_berkas,
+                nik_hash: p.nik_hash,
+                nik_encrypted: p.nik_encrypted,
+                nama_encrypted: p.nama_encrypted,
+                alamat_encrypted: p.alamat_encrypted,
+                nama_decrypted: p.nama_encrypted ? (document.getElementById("inputNama").value.trim().toUpperCase()) : "",
+                nik_decrypted: p.nik_hash ? (document.getElementById("inputNIK").value.trim()) : "",
+                alamat_decrypted: (document.getElementById("inputAlamat").value.trim().toUpperCase()),
+                rw: p.rw,
+                hubungan_pengambil: "Belum Diketahui",
+                tgl_ambil: null,
+                status: p.status,
+                kelahiran: p.kelahiran,
+                keterangan: p.keterangan,
+                sinkronisasi: "BELUM",
+                catatan_admin: ""
+            };
+
+            allData.unshift(newRow);
+            if (typeof AppCache !== "undefined") {
+                AppCache.set(AppCache.getKey(), allData);
+            }
+
+            // Tandai berkas lama di tampilan lokal (server sudah menandainya di DB)
+            if (data.flagged_old > 0) {
+                allData.forEach(d => {
+                    if (d.nik_hash === p.nik_hash && d.jenis_berkas === p.jenis_berkas && d.id !== data.id &&
+                        (!d.tgl_ambil || d.tgl_ambil === "") && d.hubungan_pengambil !== "ARSIP") {
+                        d.catatan_admin = "BELUM DILAPORKAN: KEMUNGKINAN SUDAH DIAMBIL";
+                    }
+                });
+                showToast(`${data.flagged_old} berkas lama ditandai "Belum Lapor?"`, "success");
+            }
+
+            applyClientFilters(false);
+            loadDatabaseStats(true);
+            showToast("Berkas baru berhasil ditambahkan!", "success");
+        } else {
+            alert(data.error || "Gagal menyimpan berkas baru!");
+        }
+    } catch (err) {
+        console.error("Gagal force new berkas:", err);
+        alert("Terjadi kesalahan koneksi!");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="flag" class="w-4 h-4"></i><span>Tetap Input Berkas Baru (Tandai Berkas Lama)</span>`;
+        lucide.createIcons();
     }
 }
 

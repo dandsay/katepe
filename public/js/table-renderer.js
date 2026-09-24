@@ -5,6 +5,23 @@
 
 var expandedCardIds = new Set();
 
+// Hitung kapan KTP boleh dicetak ulang: 6 bulan setelah terbit (tanggal diambil).
+// Mengembalikan { iso, display } atau null jika tanggal tidak valid.
+// Tanggal melebihi akhir bulan target di-clamp (mis. 31 Agu -> 28/29 Feb).
+function hitungCetakUlang(tglAmbil) {
+    if (!tglAmbil) return null;
+    const d = new Date(String(tglAmbil).split("T")[0] + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    const yTarget = d.getMonth() + 6 >= 12 ? d.getFullYear() + 1 : d.getFullYear();
+    const mTarget = (d.getMonth() + 6) % 12;
+    const lastDay = new Date(yTarget, mTarget + 1, 0).getDate();
+    const day = Math.min(d.getDate(), lastDay);
+    const y = yTarget;
+    const m = String(mTarget + 1).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    return { iso: `${y}-${m}-${dd}`, display: `${dd}-${m}-${y}` };
+}
+
 // Buka / Tutup Rincian Kartu Mobile Satuan (Smooth CSS Grid Animation from ui_mobile.html)
 function toggleMobileCard(id) {
     const detailEl = document.getElementById(`card-detail-${id}`);
@@ -216,6 +233,11 @@ function renderUI() {
                 <span>BELUM</span>
                </button>`;
 
+        // Tombol Arsip DIKUNCI untuk berkas yang sudah diserahterimakan
+        // (bukan status ARSIP): sudah diterima warga = tidak bisa diarsipkan.
+        const arsipLocked = isSent && !isArsip;
+        const arsipLockedCls = arsipLocked ? "opacity-40 cursor-not-allowed" : "";
+
         // Badge Status Pengambilan
         let statusBadge = "";
         if (isSent) {
@@ -226,15 +248,85 @@ function renderUI() {
             statusBadge = `<span class="whitespace-nowrap px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">Tersedia</span>`;
         }
 
-        // Badge Keterangan Berkas (Murni tujuan berkas, tidak dobel Lansia)
+        // Kalkulasi jadwal cetak ulang KTP (6 bulan setelah terbit / tgl diambil).
+        // Hanya untuk berkas KTP yang SUDAH diambil/diserahkan; KIA tidak diatur.
+        let cetakUlangInfo = null;
+        if (isSent && row.jenis_berkas === "KTP") {
+            const cu = hitungCetakUlang(row.tgl_ambil);
+            if (cu) {
+                const todayIso = new Date().toISOString().split("T")[0];
+                cetakUlangInfo = { ...cu, eligible: cu.iso <= todayIso };
+            }
+        }
+        const bolehCetakUlang = !!(cetakUlangInfo && cetakUlangInfo.eligible);
+
+        // Badge Keterangan Berkas:
+        // - Belum diambil          -> rose (17 Thn) / abu-abu (biasa), seperti biasa
+        // - Sudah diambil (KTP)    -> MERAH = belum bisa cetak ulang sampai hari ini,
+        //                             HIJAU = sudah bisa cetak ulang (>= 6 bulan terbit)
+        // - KIA                    -> selalu abu-abu (tidak ada aturan cetak ulang)
         let ketBadge = "";
         if (row.keterangan === "Perekaman Baru 17 Tahun") {
-            ketBadge = `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-                <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
-                <span>17 Thn &bull; IKD</span>
-            </span>`;
+            if (isSent && cetakUlangInfo) {
+                ketBadge = bolehCetakUlang
+                    ? `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200" title="Sudah bisa cetak ulang sejak ${cetakUlangInfo.display}">
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i>
+                        <span>17 Thn &bull; IKD</span>
+                    </span>`
+                    : `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200" title="Belum bisa cetak ulang — baru bisa ${cetakUlangInfo.display}">
+                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
+                        <span>17 Thn &bull; IKD</span>
+                    </span>`;
+            } else {
+                ketBadge = `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+                    <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
+                    <span>17 Thn &bull; IKD</span>
+                </span>`;
+            }
+        } else if (isSent && cetakUlangInfo) {
+            ketBadge = bolehCetakUlang
+                ? `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200" title="Sudah bisa cetak ulang sejak ${cetakUlangInfo.display}">${row.keterangan || "-"}</span>`
+                : `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200" title="Belum bisa cetak ulang — baru bisa ${cetakUlangInfo.display}">${row.keterangan || "-"}</span>`;
         } else {
             ketBadge = `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80">${row.keterangan || "-"}</span>`;
+        }
+
+        // Flag "Belum Lapor?" (Opsi A): berkas lama yang kemungkinan sudah diambil
+        // warga tetapi pengambilannya belum dilaporkan, muncul saat NIK yang sama
+        // diinput berkas baru.
+        const belumLapor = !!(row.catatan_admin && String(row.catatan_admin).includes("BELUM DILAPOR") && !isSent);
+        const belumLaporBadge = belumLapor
+            ? `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${row.catatan_admin}">
+                <i data-lucide="flag" class="w-3 h-3 text-amber-600 shrink-0"></i>
+                <span>Belum Lapor?</span>
+               </span>`
+            : "";
+
+        // Keterangan jadwal cetak ulang di bawah chip (memakai cetakUlangInfo di atas).
+        // Dua varian: mobile (lengkap dgn ikon) & desktop (ringkas agar muat
+        // di kolom Keterangan yang sempit dan tidak tertimpa kolom Tgl Datang).
+        let cetakUlangNote = "";
+        let cetakUlangNoteDesktop = "";
+        if (cetakUlangInfo) {
+            const eligible = cetakUlangInfo.eligible;
+            const warnaMobile = eligible
+                ? "text-emerald-700 font-semibold"
+                : "text-slate-500 font-medium";
+            const ikonMobile = eligible ? "refresh-cw" : "calendar-clock";
+            const labelMobile = eligible
+                ? `Bisa cetak ulang sejak ${cetakUlangInfo.display}`
+                : `Bisa cetak ulang: ${cetakUlangInfo.display}`;
+            cetakUlangNote = `<span class="whitespace-nowrap inline-flex items-center gap-1 text-[10px] ${warnaMobile}">
+                    <i data-lucide="${ikonMobile}" class="w-3 h-3 shrink-0"></i>
+                    <span>${labelMobile}</span>
+                   </span>`;
+            // Desktop: label di baris pertama, tanggal di baris kedua (tidak
+            // menyambung agar tanggal tidak terpotong wrap), ukuran font
+            // disamakan dengan baris "Tgl Datang:" / "Diterima:" (text-[11px]).
+            cetakUlangNoteDesktop = `<span class="block leading-snug text-[11px]" title="${labelMobile}">
+                        <span class="block text-slate-500 font-medium">${eligible ? 'Bisa cetak ulang sejak:' : 'Cetak ulang:'}</span>
+                        <span class="block ${eligible ? 'text-emerald-700 font-semibold' : 'text-slate-600 font-medium'}">${cetakUlangInfo.display}</span>
+                    </span>`;
         }
 
         const isKIA = (row.jenis_berkas === "KIA");
@@ -288,6 +380,12 @@ function renderUI() {
                         <!-- 3. Di Bawah Alamat: Tempatkan RW & Tag Khusus -->
                         <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
                             <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] leading-none border border-slate-200">RW ${row.rw || "-"}</span>
+                            ${belumLapor ? `
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded leading-none" title="${row.catatan_admin}">
+                                    <i data-lucide="flag" class="w-2.5 h-2.5"></i>
+                                    <span>Belum Lapor?</span>
+                                </span>` : ''
+                            }
                             ${isArsip ? `
                                 <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded leading-none">
                                     <i data-lucide="archive" class="w-2.5 h-2.5"></i>
@@ -295,7 +393,7 @@ function renderUI() {
                                 </span>` : ''
                             }
                             ${is17 ? `
-                                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded leading-none">
+                                <span class="inline-flex items-center gap-1 text-[11px] font-semibold ${bolehCetakUlang ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200'} px-1.5 py-0.5 rounded leading-none" title="${bolehCetakUlang ? 'Sudah bisa cetak ulang sejak ' + (cetakUlangInfo ? cetakUlangInfo.display : '') : 'Harap dampingi aktivasi IKD'}">
                                     <i data-lucide="alert-circle" class="w-2.5 h-2.5"></i>
                                     <span>17 Thn &bull; IKD</span>
                                 </span>` : ''
@@ -316,9 +414,13 @@ function renderUI() {
                 </div>
 
                 <!-- Baris Pemicu Detail (Accordion Toggle) -->
-                <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                    <span class="${is17 ? 'text-rose-600 font-medium' : 'text-slate-400 font-medium'}">${subText}</span>
-                    <button onclick="toggleMobileCard(${row.id})" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 select-none">
+                <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] gap-2">
+                    <div class="flex flex-col items-start min-w-0 gap-1">
+                        <span class="${is17 ? 'text-rose-600 font-medium' : 'text-slate-400 font-medium'} truncate">${subText}</span>
+                        ${cetakUlangNote}
+                        ${showSync ? syncBadge : ''}
+                    </div>
+                    <button onclick="toggleMobileCard(${row.id})" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 select-none shrink-0">
                         <span id="toggle-text-${row.id}">${isCardOpen ? 'Tutup Detail' : 'Detail & NIK'}</span>
                         <i data-lucide="chevron-down" id="chevron-${row.id}" class="w-3.5 h-3.5 chevron-icon ${isCardOpen ? 'rotate' : ''}"></i>
                     </button>
@@ -352,32 +454,36 @@ function renderUI() {
 
                         <div class="bg-white p-2 rounded-lg border border-slate-200/70">
                             <span class="text-[11px] uppercase font-semibold text-slate-400 block mb-0.5">Status Pengambilan</span>
-                            <span class="${isSent ? 'text-emerald-700 font-semibold' : 'text-amber-600 font-semibold'} text-xs truncate block">
-                                ${isSent ? (fmtTglAmbil + (row.hubungan_pengambil ? ' (' + row.hubungan_pengambil + ')' : '')) : 'Belum Diambil'}
+                            ${isSent ? `
+                            <span class="text-xs block truncate ${row.hubungan_pengambil === 'ARSIP' ? 'text-purple-700' : 'text-emerald-700'} font-semibold">
+                                Penerima: ${row.hubungan_pengambil || "Belum Diketahui"}
                             </span>
+                            <span class="text-xs text-slate-600 font-medium block">Diterima: ${fmtTglAmbil}</span>
+                            ` : `
+                            <span class="text-amber-600 font-semibold text-xs block">Belum Diambil</span>
+                            `}
                         </div>
                     </div>
 
-                    <!-- Baris Aksi Administratif -->
-                    <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                        <div class="flex items-center gap-1.5">
-                            ${showSync ? syncBadge : `<span class="text-[11px] text-slate-400">ID: #${row.id}</span>`}
-                            ${showPengambil && isSent ? `<span class="text-[11px] text-slate-500 font-medium ml-1">Penerima: ${pengambilBadge}</span>` : ''}
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <button onclick="toggleArsip(${row.id})" title="${isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas'}" class="px-2 py-1 ${isArsip ? 'text-purple-800 bg-purple-100 border-purple-300 font-semibold' : 'text-slate-600 bg-white border-slate-200 font-medium'} border rounded-lg hover:bg-purple-50 flex items-center gap-1 text-[11px] transition">
-                                <i data-lucide="archive" class="w-3 h-3 ${isArsip ? 'text-purple-700' : 'text-slate-500'}"></i>
-                                <span>${isArsip ? 'ARSIP' : 'Arsipkan'}</span>
-                            </button>
-                            <button onclick="openModalEdit(${row.id})" class="px-2.5 py-1 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 text-[11px] font-medium transition">
-                                <i data-lucide="edit-3" class="w-3 h-3 text-slate-500"></i>
-                                <span>Edit</span>
-                            </button>
-                            <button onclick="openModalHapus(${row.id})" class="px-2.5 py-1 text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 flex items-center gap-1 text-[11px] font-medium transition">
-                                <i data-lucide="trash-2" class="w-3 h-3 text-rose-500"></i>
-                                <span>Hapus</span>
-                            </button>
-                        </div>
+                    <!-- Baris Info: ID (chip Sync sudah dipindah ke header kartu) -->
+                    <div class="pt-2 border-t border-slate-200/60 flex items-center justify-end">
+                        <span class="text-[11px] text-slate-400 font-medium">ID: #${row.id}</span>
+                    </div>
+
+                    <!-- Baris Aksi Administratif: grid 3 kolom penuh agar tombol tidak sesak -->
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas')}" class="px-2 py-1.5 justify-center ${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'text-purple-800 bg-purple-100 border-purple-300 font-semibold' : 'text-slate-600 bg-white border-slate-200 font-medium'} border rounded-lg ${arsipLocked ? '' : 'hover:bg-purple-50'} flex items-center gap-1 text-[11px] transition">
+                            <i data-lucide="${arsipLocked ? 'lock' : 'archive'}" class="w-3 h-3 ${arsipLocked ? 'text-slate-400' : (isArsip ? 'text-purple-700' : 'text-slate-500')}"></i>
+                            <span>${isArsip ? 'ARSIP' : 'Arsipkan'}</span>
+                        </button>
+                        <button onclick="openModalEdit(${row.id})" class="px-2.5 py-1.5 justify-center text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 text-[11px] font-medium transition">
+                            <i data-lucide="edit-3" class="w-3 h-3 text-slate-500"></i>
+                            <span>Edit</span>
+                        </button>
+                        <button onclick="openModalHapus(${row.id})" class="px-2.5 py-1.5 justify-center text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 flex items-center gap-1 text-[11px] font-medium transition">
+                            <i data-lucide="trash-2" class="w-3 h-3 text-rose-500"></i>
+                            <span>Hapus</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -389,6 +495,7 @@ function renderUI() {
             ? "bg-rose-50/30 hover:bg-rose-100/50 border-b border-rose-200/60 border-l-4 border-l-rose-500"
             : "bg-blue-50/25 hover:bg-blue-100/40 border-b border-blue-200/60 border-l-4 border-l-blue-500";
         const tr = document.createElement("tr");
+        tr.id = "berkas-row-" + row.id;
         tr.className = `${desktopRowTheme} transition group/row`;
         tr.innerHTML = `
             <td class="py-3 px-3 text-center text-slate-400 font-mono font-medium whitespace-nowrap text-xs">${idx + 1}</td>
@@ -412,9 +519,11 @@ function renderUI() {
                 <div class="font-normal text-slate-700 uppercase truncate" title="${(row.alamat_decrypted || '-').toUpperCase()}">${(row.alamat_decrypted || "-").toUpperCase()}</div>
                 <div class="mt-1">${rwBadge}</div>
             </td>
-            <td class="py-3 px-3 whitespace-nowrap overflow-hidden">
+            <td class="py-3 px-3 overflow-hidden">
                 <div class="flex flex-col items-start gap-1">
                     ${ketBadge}
+                    ${cetakUlangNoteDesktop}
+                    ${belumLapor ? belumLaporBadge : ''}
                     ${arsipPill}
                 </div>
             </td>
@@ -440,8 +549,8 @@ function renderUI() {
                         <i data-lucide="trash-2" class="w-3.5 h-3.5 shrink-0"></i>
                         <span>Hapus</span>
                     </button>
-                    <button onclick="toggleArsip(${row.id})" title="${isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas (kecualikan dari cetak RW)'}" class="${isArsip ? 'bg-purple-600 hover:bg-purple-700 text-white font-bold' : 'bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 font-bold'} px-1.5 py-1.5 rounded-lg text-[11px] shadow-2xs flex items-center justify-center gap-1 transition active:scale-95">
-                        <i data-lucide="archive" class="w-3.5 h-3.5 shrink-0"></i>
+                    <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas (kecualikan dari cetak RW)')}" class="${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'bg-purple-600 hover:bg-purple-700 text-white font-bold' : 'bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 font-bold'} px-1.5 py-1.5 rounded-lg text-[11px] shadow-2xs flex items-center justify-center gap-1 transition active:scale-95">
+                        <i data-lucide="${arsipLocked ? 'lock' : 'archive'}" class="w-3.5 h-3.5 shrink-0"></i>
                         <span>${isArsip ? "ARSIP" : "Arsip"}</span>
                     </button>
                 </div>

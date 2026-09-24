@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS rekap_berkas (
     kelahiran TEXT,                     -- DD-MM-YYYY (hasil parsing NIK)
     keterangan TEXT NOT NULL,           -- 'Cetak Biasa KIA' | 'Perekaman Baru 17 Tahun' | 'Cetak Biasa KTP'
     sinkronisasi TEXT DEFAULT 'BELUM',  -- 'SYNC' (Sudah Cocok Fisik) | 'BELUM' (Belum Cek Fisik)
+    catatan_admin TEXT DEFAULT '',      -- Flag admin: 'BELUM DILAPORKAN: KEMUNGKINAN SUDAH DIAMBIL' saat NIK sama diinput lagi sebelum berkas lama dilaporkan. Otomatis dikosongkan saat berkas diserahkan.
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
