@@ -1,0 +1,137 @@
+/* Modern Typography & Polish */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Comfortable Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Accordion Expand Animation from ui_mobile.html */
+.card-detail {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    opacity: 0;
+}
+.card-detail.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+.card-detail-inner {
+    overflow: hidden;
+}
+.chevron-icon {
+    transition: transform 0.2s ease;
+}
+.chevron-icon.rotate {
+    transform: rotate(180deg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Spinner */
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border-left-color: #2563eb;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mobile Card & Button Touch Targets */
+.touch-target {
+    min-height: 42px;
+}
+
+.table-row-hover:hover {
+    background-color: #f8fafc;
+}
+
+/* Stat Cards & Interactive Polish */
+.stat-card {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stat-card:active {
+    transform: scale(0.98);
+}
+
+/* --- PRINT STYLES (PERSIS SEPERTI DASHBOARD GAS) --- */
+@media print {
+    @page {
+        size: landscape;
+        margin: 10mm;
+    }
+    body {
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    html.has-session #mainApp,
+    #mainApp, 
+    #loginModal, 
+    #modalPengambilan, 
+    #modalTambah, 
+    #modalHapus, 
+    #modalEdit, 
+    #modalLaporanBulanan, 
+    #toastContainer {
+        display: none !important;
+    }
+    
+    #printContainer {
+        display: block !important;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        font-family: 'Times New Roman', serif;
+    }
+    th, td {
+        border: 1px solid black;
+        padding: 4px 6px;
+        color: black;
+    }
+    th {
+        background-color: #e5e7eb !important;
+        font-weight: bold;
+        text-transform: uppercase;
+        text-align: center;
+    }
+    td {
+        vertical-align: middle;
+    }
+    .page-break {
+        page-break-before: always;
+    }
+    .print-section {
+        margin-bottom: 20px;
+    }
+}

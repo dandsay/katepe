@@ -1,0 +1,38 @@
+{
+  "name": "katepe",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sistem Rekapitulasi Database KTP & KIA Digital Modern & Zero-Knowledge berbasis Cloudflare Workers & D1",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dandsay/katepe.git"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "cloudflare-d1",
+    "zero-knowledge",
+    "ktp",
+    "kia",
+    "kependudukan",
+    "e-government",
+    "open-source",
+    "indonesia"
+  ],
+  "author": "Muhamad Dandy Safitra",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dandsay/katepe/issues"
+  },
+  "homepage": "https://github.com/dandsay/katepe#readme",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "d1:local": "wrangler d1 execute ktp-kia-db --local --file=./schema.sql",
+    "d1:remote": "wrangler d1 execute ktp-kia-db --remote --file=./schema.sql"
+  },
+  "dependencies": {
+    "wrangler": "^4.71.0"
+  }
+}
