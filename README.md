@@ -62,7 +62,7 @@ Mencari berkas warga gak pakai lama:
 ### 8. 🛡️ Jaring Pengaman Administrasi & Status ARSIP
 - **Validasi tanggal:** `tgl_ambil` tidak boleh lebih awal dari `tgl_datang` (divalidasi di create/update + UI arsip).
 - **Tombol ARSIP mandiri:** menandai berkas sebagai `ARSIP` (status `SELESAI`, dikecualikan dari cetak RW) dan bisa dibatalkan kembali.
-- **Batch upsert cerdas:** sinkronisasi berbasis kunci unik `(nik_hash, tgl_datang, jenis_berkas)` dengan resolusi konflik `ON CONFLICT`.
+- **Endpoint batch dimatikan (410 Gone):** migrasi spreadsheet (era GAS) telah selesai; proses data kini 100% manual via web agar semua input melewati penjagaan yang sama.
 
 ### 7. 📱 Nyaman di Monitor Lebar & Ramah Layar HP
 - Tampilan desktop widescreen (16:9) yang lega tanpa perlu geser scroll horizontal.

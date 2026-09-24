@@ -54,6 +54,48 @@ function formatDate(d) {
     return d;
 }
 
+// Modal Konfirmasi Generik (pengganti confirm() bawaan browser)
+// Pemakaian:
+//   openModalKonfirmasi({
+//     judul: "Hapus Berkas?",
+//     isi: "<b>Nama</b> akan dihapus permanen.",
+//     labelYa: "Hapus",       // opsional
+//     warna: "rose"|"amber"|"blue",  // opsional (default rose)
+//     onYa: () => { ... }     // dipanggil saat tombol ya ditekan
+//   });
+let konfirmasiHandler = null;
+
+function openModalKonfirmasi({ judul = "Konfirmasi", subjudul = "Periksa kembali sebelum melanjutkan.", isi = "", labelYa = "Ya, Lanjutkan", warna = "rose", onYa = null }) {
+    document.getElementById("konfJudul").innerText = judul;
+    document.getElementById("konfSubjudul").innerText = subjudul;
+    document.getElementById("konfIsi").innerHTML = isi;
+    document.getElementById("konfLabelYa").innerText = labelYa;
+
+    const palet = {
+        rose:  { box: "bg-rose-100 text-rose-700",   tombol: "bg-rose-600 hover:bg-rose-700" },
+        amber: { box: "bg-amber-100 text-amber-700", tombol: "bg-amber-600 hover:bg-amber-700" },
+        blue:  { box: "bg-blue-100 text-blue-700",   tombol: "bg-blue-600 hover:bg-blue-700" }
+    };
+    const p = palet[warna] || palet.rose;
+    document.getElementById("konfIkonBox").className = `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.box}`;
+    document.getElementById("btnKonfYa").className = `flex-1 py-3 active:scale-98 text-white font-bold rounded-xl transition text-sm flex items-center justify-center gap-1.5 shadow-sm ${p.tombol}`;
+
+    konfirmasiHandler = onYa;
+    document.getElementById("modalKonfirmasi").classList.remove("hidden");
+    lucide.createIcons();
+}
+
+function closeModalKonfirmasi() {
+    document.getElementById("modalKonfirmasi").classList.add("hidden");
+    konfirmasiHandler = null;
+}
+
+async function executeKonfirmasiYa() {
+    const handler = konfirmasiHandler;
+    closeModalKonfirmasi();
+    if (handler) await handler();
+}
+
 // Notifikasi Toast
 function showToast(message, type = "success") {
     const container = document.getElementById("toastContainer");
@@ -123,6 +165,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Menit TTL Cache
 // Manajer Cache Lokal Browser per Tahun (Zero Quota Read D1 untuk Data Cached)
 const AppCache = {
     getKey(year) {
+        // Mode ARSIP memegang dataset lintas-tahun → default ke cache "ALL"
+        if (!year && typeof activeJenis !== "undefined" && activeJenis === "ARSIP") year = "ALL";
         const yr = year || (typeof activeYear !== "undefined" ? activeYear : new Date().getFullYear().toString());
         return `ktp_cache_data_${yr}`;
     },
@@ -187,6 +231,31 @@ function updateStatsFromClient(data = allData) {
     const isAllYear = yr === "ALL";
     const jns = typeof activeJenis !== "undefined" ? activeJenis : "KTP";
 
+    // Mode ARSIP: satu angka TOTAL lintas semua tahun (KTP+KIA gabungan)
+    if (jns === "ARSIP") {
+        let totalArsip = 0;
+        data.forEach(item => {
+            const itemYear = item.tgl_datang ? item.tgl_datang.substring(0, 4) : "";
+            if (itemYear && itemYear.length === 4) {
+                availableYearsSet.add(itemYear);
+            }
+            if (item.hubungan_pengambil === "ARSIP") totalArsip++;
+        });
+
+        const statTotal = document.getElementById("statTotal");
+        const statSent = document.getElementById("statSent");
+        const statPending = document.getElementById("statPending");
+        const stat17 = document.getElementById("stat17");
+
+        if (statTotal) statTotal.innerText = totalArsip.toLocaleString("id-ID");
+        if (statSent) statSent.innerText = (0).toLocaleString("id-ID");
+        if (statPending) statPending.innerText = (0).toLocaleString("id-ID");
+        if (stat17) stat17.innerText = (0).toLocaleString("id-ID");
+
+        updateYearDropdown();
+        return;
+    }
+
     let total = 0;
     let sent = 0;
     let pending = 0;
@@ -199,6 +268,9 @@ function updateStatsFromClient(data = allData) {
         if (itemYear && itemYear.length === 4) {
             availableYearsSet.add(itemYear);
         }
+
+        // Arsip keluar dari antrean aktif → tidak dihitung di tab normal
+        if (item.hubungan_pengambil === "ARSIP") return;
 
         if (item.jenis_berkas === "KTP") totalKtp++;
         else if (item.jenis_berkas === "KIA") totalKia++;

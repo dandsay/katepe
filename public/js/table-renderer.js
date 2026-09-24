@@ -214,13 +214,13 @@ function renderUI() {
         const safeNama = (row.nama_decrypted || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const safeNik = (row.nik_decrypted || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-        // Indikator ARSIP (status tetap terlihat walau tombolnya masuk menu gabungan)
-        const arsipPill = isArsip
-            ? `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-300 mt-1">
-                <i data-lucide="archive" class="w-3 h-3 text-purple-700 shrink-0"></i>
-                <span>ARSIP</span>
+        // Nomor urut: baris ARSIP tampil sebagai oval ungu + tulisan ARSIP di bawahnya
+        const noCell = isArsip
+            ? `<span class="inline-flex flex-col items-center gap-0.5">
+                   <span class="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-full bg-purple-100 text-purple-800 border border-purple-300 font-mono font-bold text-xs">${idx + 1}</span>
+                   <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wider leading-none">Arsip</span>
                </span>`
-            : ``;
+            : `${idx + 1}`;
 
         // Tombol sinkronisasi 1-klik, dipasang tepat di sebelah badge status
         const syncBtn = row.sinkronisasi === "SYNC"
@@ -498,7 +498,7 @@ function renderUI() {
         tr.id = "berkas-row-" + row.id;
         tr.className = `${desktopRowTheme} transition group/row`;
         tr.innerHTML = `
-            <td class="py-3 px-3 text-center text-slate-400 font-mono font-medium whitespace-nowrap text-xs">${idx + 1}</td>
+            <td class="py-3 px-3 text-center font-mono font-medium whitespace-nowrap text-xs ${isArsip ? "" : "text-slate-400"}">${noCell}</td>
             <td class="py-3 px-3 whitespace-nowrap overflow-hidden">
                 <div class="flex items-center gap-1.5" title="Arahkan mouse untuk membuka NIK lengkap / Klik salin NIK">
                     <span class="font-mono text-slate-800 font-semibold text-xs tracking-wider group-hover/row:hidden">${maskedNik}</span>
@@ -524,7 +524,6 @@ function renderUI() {
                     ${ketBadge}
                     ${cetakUlangNoteDesktop}
                     ${belumLapor ? belumLaporBadge : ''}
-                    ${arsipPill}
                 </div>
             </td>
             <td class="py-3 px-3 overflow-hidden">

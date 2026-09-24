@@ -9,6 +9,7 @@
 function openModalPengambilan(id) {
     const item = allData.find(d => d.id === id);
     if (!item) return;
+    bersihkanErrorForm("formPengambilan");
 
     document.getElementById("editBerkasId").value = item.id;
     document.getElementById("modalNamaPemilik").innerText = item.nama_decrypted;
@@ -54,15 +55,31 @@ async function executeBatalPengambilan() {
     const item = allData.find(d => d.id === parseInt(id, 10));
     if (!item) return;
 
-    if (!confirm(`Yakin ingin membatalkan pengambilan berkas atas nama "${item.nama_decrypted}"?\nBerkas akan dikembalikan ke status Tersedia / Belum Diambil.`)) {
-        return;
-    }
+    openModalKonfirmasi({
+        judul: "Batalkan Pengambilan?",
+        subjudul: "Aksi ini akan mengubah status berkas.",
+        isi: `<div class="font-bold text-slate-800">${item.nama_decrypted}</div>
+              <div class="text-xs text-slate-500">Berkas akan dikembalikan ke status <b>Tersedia / Belum Diambil</b>.</div>`,
+        labelYa: "Ya, Batalkan",
+        warna: "amber",
+        onYa: async () => {
+            const btn = document.getElementById("btnBatalAmbil");
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Membatalkan...";
+            }
+            await batalPengambilanAPI(id, item);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="undo-2" class="w-4 h-4 text-rose-600"></i><span>Batalkan Pengambilan (Kembalikan ke Tersedia)</span>`;
+                lucide.createIcons();
+            }
+        }
+    });
+}
 
+async function batalPengambilanAPI(id, item) {
     const btn = document.getElementById("btnBatalAmbil");
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Membatalkan...";
-    }
 
     try {
         const parsed = NIKHelper.parse(item.nik_decrypted, item.jenis_berkas);
@@ -98,17 +115,11 @@ async function executeBatalPengambilan() {
             loadDatabaseStats(true);
             showToast("Pengambilan berkas berhasil dibatalkan!", "success");
         } else {
-            alert(data.error || "Gagal membatalkan pengambilan!");
+            showToast(data.error || "Gagal membatalkan pengambilan!", "error");
         }
     } catch (err) {
         console.error("Gagal batal ambil:", err);
-        alert("Terjadi kesalahan sistem saat membatalkan!");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<i data-lucide="undo-2" class="w-4 h-4 text-rose-600"></i><span>Batalkan Pengambilan (Kembalikan ke Tersedia)</span>`;
-            lucide.createIcons();
-        }
+        showToast("Terjadi kesalahan sistem saat membatalkan!", "error");
     }
 }
 
@@ -122,7 +133,7 @@ async function submitPengambilan(e) {
     const item = allData.find(d => String(d.id) === String(id));
     const tglDatangRef = item?.tgl_datang ? item.tgl_datang.split("T")[0] : "";
     if (tglDatangRef && tglAmbil && tglAmbil < tglDatangRef) {
-        alert(`Jaring Pengaman Administrasi:\nTanggal diambil (${tglAmbil}) tidak boleh lebih awal dari tanggal berkas datang (${tglDatangRef})!`);
+        tampilkanErrorForm("formPengambilan", `Tanggal diambil (${tglAmbil}) tidak boleh lebih awal dari tanggal berkas datang (${tglDatangRef})!`);
         return;
     }
 
@@ -158,11 +169,11 @@ async function submitPengambilan(e) {
             loadDatabaseStats(true);
             showToast("Data pengambilan berhasil disimpan!", "success");
         } else {
-            alert(data.error || "Gagal menyimpan!");
+            showToast(data.error || "Gagal menyimpan!", "error");
         }
     } catch (err) {
         console.error("Gagal submit ambil:", err);
-        alert("Terjadi kesalahan sistem!");
+        showToast("Terjadi kesalahan sistem!", "error");
     } finally {
         btn.disabled = false;
         btn.innerText = "Simpan";
@@ -232,11 +243,11 @@ async function executeHapusBerkas() {
             loadDatabaseStats(true);
             showToast("Berkas berhasil dihapus", "success");
         } else {
-            alert(data.error || "Gagal menghapus berkas!");
+            showToast(data.error || "Gagal menghapus berkas!", "error");
         }
     } catch (err) {
         console.error("Gagal hapus berkas:", err);
-        alert("Terjadi kesalahan sistem saat menghapus!");
+        showToast("Terjadi kesalahan sistem saat menghapus!", "error");
     } finally {
         btn.disabled = false;
         btn.innerText = "Hapus";
@@ -250,6 +261,7 @@ function openModalTambah() {
     document.getElementById("formTambah").reset();
     document.getElementById("inputTglDatang").value = new Date().toISOString().split("T")[0];
     document.getElementById("nikPreviewBox").classList.add("hidden");
+    bersihkanErrorForm("formTambah");
     document.getElementById("modalTambah").classList.remove("hidden");
     lucide.createIcons();
 }
@@ -293,15 +305,17 @@ async function submitTambahBerkas(e) {
     const btn = document.getElementById("btnSimpanTambah");
 
     if (!jenis || !tglDatang || !nik || !nama || !alamat || !rw) {
-        alert("Semua kolom (Jenis Berkas, Tanggal Datang, NIK, Nama Pemilik, Alamat, dan RW) wajib diisi tanpa terkecuali!");
+        tampilkanErrorForm("formTambah", "Semua kolom (Jenis Berkas, Tanggal Datang, NIK, Nama Pemilik, Alamat, dan RW) wajib diisi tanpa terkecuali!");
         return;
     }
 
     const nikInfo = NIKHelper.parse(nik, jenis);
     if (!nikInfo.isValid) {
-        alert(nikInfo.error);
+        tampilkanErrorForm("formTambah", nikInfo.error);
         return;
     }
+
+    bersihkanErrorForm("formTambah");
 
     btn.disabled = true;
     btn.innerText = "Mengenkripsi & Menyimpan...";
@@ -396,11 +410,11 @@ async function submitTambahBerkas(e) {
             loadDatabaseStats(true);
             showToast("Berkas berhasil ditambahkan!", "success");
         } else {
-            alert(data.error || "Gagal menambah berkas!");
+            showToast(data.error || "Gagal menambah berkas!", "error");
         }
     } catch (err) {
         console.error("Gagal submit berkas:", err);
-        alert("Terjadi kesalahan enkripsi atau koneksi!");
+        showToast("Terjadi kesalahan enkripsi atau koneksi!", "error");
     } finally {
         btn.disabled = false;
         btn.innerText = "Simpan Berkas";
@@ -579,11 +593,11 @@ async function executeForceNew() {
             loadDatabaseStats(true);
             showToast("Berkas baru berhasil ditambahkan!", "success");
         } else {
-            alert(data.error || "Gagal menyimpan berkas baru!");
+            showToast(data.error || "Gagal menyimpan berkas baru!", "error");
         }
     } catch (err) {
         console.error("Gagal force new berkas:", err);
-        alert("Terjadi kesalahan koneksi!");
+        showToast("Terjadi kesalahan koneksi!", "error");
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i data-lucide="flag" class="w-4 h-4"></i><span>Tetap Input Berkas Baru (Tandai Berkas Lama)</span>`;
@@ -599,7 +613,7 @@ function openModalEdit(id) {
     if (!item) return;
 
     document.getElementById("editDataId").value = item.id;
-    document.getElementById("editJenis").value = item.jenis_berkas || activeJenis || "KTP";
+    document.getElementById("editJenis").value = item.jenis_berkas || ((typeof activeJenis !== "undefined" && activeJenis !== "ARSIP") ? activeJenis : "KTP");
     document.getElementById("editTglDatang").value = item.tgl_datang ? item.tgl_datang.split("T")[0] : "";
     document.getElementById("editNIK").value = item.nik_decrypted || "";
     document.getElementById("editNama").value = (item.nama_decrypted || "").toUpperCase();
@@ -607,6 +621,7 @@ function openModalEdit(id) {
     document.getElementById("editRW").value = item.rw || "001";
 
     onEditNIKChange();
+    bersihkanErrorForm("formEdit");
     document.getElementById("modalEdit").classList.remove("hidden");
     lucide.createIcons();
 }
@@ -652,27 +667,29 @@ async function submitEditBerkas(e) {
 
     const item = allData.find(d => String(d.id) === String(id));
     if (!item) {
-        alert("Data berkas tidak ditemukan!");
+        tampilkanErrorForm("formEdit", "Data berkas tidak ditemukan di data aktif — muat ulang halaman.");
         return;
     }
 
     if (!jenis || !tglDatang || !nik || !nama || !alamat || !rw) {
-        alert("Semua kolom (Jenis Berkas, Tanggal Datang, NIK, Nama Pemilik, Alamat, dan RW) wajib diisi tanpa terkecuali!");
+        tampilkanErrorForm("formEdit", "Semua kolom (Jenis Berkas, Tanggal Datang, NIK, Nama Pemilik, Alamat, dan RW) wajib diisi tanpa terkecuali!");
         return;
     }
 
     // Jaring Pengaman Administrasi: Tanggal datang tidak boleh lebih baru dari tanggal diambil jika berkas sudah diambil
     const tglAmbilRef = item.tgl_ambil ? item.tgl_ambil.split("T")[0] : "";
     if (tglAmbilRef && tglDatang > tglAmbilRef) {
-        alert(`Jaring Pengaman Administrasi:\nTanggal berkas datang (${tglDatang}) tidak boleh lebih baru dari tanggal berkas yang sudah diambil (${tglAmbilRef})!`);
+        tampilkanErrorForm("formEdit", `Jaring Pengaman Administrasi: Tanggal berkas datang (${tglDatang}) tidak boleh lebih baru dari tanggal berkas yang sudah diambil (${tglAmbilRef})!`);
         return;
     }
 
     const nikInfo = NIKHelper.parse(nik, jenis);
     if (!nikInfo.isValid) {
-        alert(nikInfo.error);
+        tampilkanErrorForm("formEdit", nikInfo.error);
         return;
     }
+
+    bersihkanErrorForm("formEdit");
 
     btn.disabled = true;
     btn.innerText = "Mengenkripsi & Menyimpan...";
@@ -733,13 +750,42 @@ async function submitEditBerkas(e) {
             loadDatabaseStats(true);
             showToast("Data berkas berhasil diperbarui!", "success");
         } else {
-            alert(data.error || "Gagal memperbarui data berkas!");
+            showToast(data.error || "Gagal memperbarui data berkas!", "error");
         }
     } catch (err) {
         console.error("Gagal edit berkas:", err);
-        alert("Terjadi kesalahan enkripsi atau koneksi!");
+        showToast("Terjadi kesalahan enkripsi atau koneksi!", "error");
     } finally {
         btn.disabled = false;
         btn.innerText = "Simpan Perubahan";
     }
+}
+
+// ==========================================
+// UTIL: Pesan Error Inline Modal (pengganti alert validasi)
+// ==========================================
+
+// Tampilkan pesan validasi form secara INLINE (strip merah) di dalam modal,
+// pengganti alert() browser — staf langsung lihat konteksnya.
+function tampilkanErrorForm(formId, pesan) {
+    const form = document.getElementById(formId);
+    if (!form) { showToast(pesan, "error"); return; }
+    let el = document.getElementById(formId + "Error");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = formId + "Error";
+        el.className = "text-rose-700 bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs font-bold flex items-start gap-2";
+        el.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5"></i><span></span>`;
+        const tombolRow = form.querySelector(".flex.items-center.gap-3.pt-3");
+        if (tombolRow) form.insertBefore(el, tombolRow); else form.appendChild(el);
+    }
+    el.querySelector("span").innerText = pesan;
+    el.classList.remove("hidden");
+    lucide.createIcons();
+}
+
+// Sembunyikan pesan error form (dipanggil saat modal dibuka/disimpan sukses)
+function bersihkanErrorForm(formId) {
+    const el = document.getElementById(formId + "Error");
+    if (el) el.classList.add("hidden");
 }

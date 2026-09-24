@@ -10,13 +10,12 @@ import { verifySessionToken } from "./utils/auth-crypto.js";
 import { handleAuthVerify } from "./routes/auth.js";
 import { handleStats } from "./routes/stats.js";
 import { handleLaporanBulanan } from "./routes/laporan.js";
-import { 
-    handleGetBerkas, 
-    handleCreateBerkas, 
-    handleUpdateBerkas, 
-    handleDeleteBerkas, 
-    handleUnsyncAll, 
-    handleBatchUpsert 
+import {
+    handleGetBerkas,
+    handleCreateBerkas,
+    handleUpdateBerkas,
+    handleDeleteBerkas,
+    handleUnsyncAll
 } from "./routes/berkas.js";
 
 export default {
@@ -70,9 +69,15 @@ export default {
             return handleLaporanBulanan(request, env, url);
         }
 
-        // 3.5 Berkas: Batch Upsert
-        if (url.pathname === "/api/berkas/batch" && request.method === "POST") {
-            return handleBatchUpsert(request, env);
+        // 3.5 Berkas: Batch Upsert — DIMATIKAN PERMANEN (410 Gone).
+        // Migrasi spreadsheet (era GAS) telah selesai; proses data kini 100%
+        // manual via web. Endpoint ini pernah jadi pintu tanpa penjagaan
+        // (melewati validasi tanggal/enum/duplikat), jadi dibekukan penuh.
+        if (url.pathname === "/api/berkas/batch") {
+            return jsonResponse({
+                success: false,
+                error: "Endpoint batch sudah dimatikan. Migrasi spreadsheet telah selesai — gunakan input manual di aplikasi web."
+            }, 410);
         }
 
         // 3.6 Berkas: Unsync All

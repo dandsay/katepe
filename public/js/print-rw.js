@@ -4,6 +4,11 @@
  */
 
 function printReport() {
+    // Mode ARSIP: cetak laporan RW dibekukan
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") {
+        showToast("Cetak Laporan RW tidak tersedia di mode ARSIP.", "error");
+        return;
+    }
     const printContainer = document.getElementById("printContainer");
     printContainer.innerHTML = "";
 
@@ -11,7 +16,7 @@ function printReport() {
     const validDataForPrint = filteredData.filter(row => row.hubungan_pengambil !== "ARSIP");
 
     if (validDataForPrint.length === 0) {
-        alert("Tidak ada data untuk dicetak (atau semua data yang dipilih berstatus ARSIP).");
+        showToast("Tidak ada data untuk dicetak (atau semua data yang dipilih berstatus ARSIP).", "error");
         return;
     }
 

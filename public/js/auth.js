@@ -102,7 +102,11 @@ async function doLogin(pin) {
             // Turunkan kunci enkripsi AES-GCM 256-bit dari PIN (Zero-Knowledge)
             appKey = await AppCrypto.deriveKey(pin);
 
-            // Pulihkan tab visual & status RW
+            // Pulihkan tab visual & status RW (validasi nilai tab usang)
+            if (activeJenis !== "KTP" && activeJenis !== "KIA" && activeJenis !== "ARSIP") {
+                activeJenis = "KTP";
+                sessionStorage.setItem("ktp_active_jenis", "KTP");
+            }
             if (typeof applyTabUI === "function") {
                 applyTabUI(activeJenis);
             }
@@ -119,8 +123,13 @@ async function doLogin(pin) {
             document.getElementById("mainApp").classList.remove("hidden");
             lucide.createIcons();
 
-            // Muat data awal (menggunakan cache 0ms jika valid)
-            await loadData();
+            // Muat data awal (mode ARSIP langsung ambil semua tahun dari DB;
+            // tab normal memakai cache 0ms per-tahun jika valid)
+            if (activeJenis === "ARSIP" && typeof filterJenis === "function") {
+                await filterJenis("ARSIP");
+            } else {
+                await loadData();
+            }
             return true;
         } else {
             document.documentElement.classList.remove("has-session");

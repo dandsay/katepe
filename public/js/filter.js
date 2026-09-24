@@ -7,6 +7,11 @@ var searchedQueries = new Set();
 
 // Muat dan Dekripsi Data Berkas dari Cloudflare D1 (Model Register Surat: 1x Load per Tahun Terpilih)
 async function loadData(forceRefresh = false) {
+    // Mode ARSIP memegang dataset lintas-tahun → alihkan ke pemuat arsip
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP" && typeof loadArsipAll === "function") {
+        await loadArsipAll(forceRefresh);
+        return;
+    }
     searchedQueries.clear();
     hideDeepPromptBanner();
     hideSearchOnDemandBanner();
@@ -39,7 +44,7 @@ async function loadData(forceRefresh = false) {
 
         const result = await res.json();
         if (!result.success) {
-            alert(result.error || "Gagal memuat data");
+            showToast(result.error || "Gagal memuat data", "error");
             return;
         }
 
@@ -68,43 +73,169 @@ async function loadData(forceRefresh = false) {
         updateStatsFromClient(allData);
     } catch (err) {
         console.error("Gagal load data:", err);
-        alert("Terjadi kesalahan saat memuat data: " + (err.message || err));
+        showToast("Terjadi kesalahan saat memuat data: " + (err.message || err), "error");
     } finally {
         if (overlay) overlay.classList.add("hidden");
     }
 }
 
-// Terapkan Visual Tab E-KTP vs KIA
+// Terapkan Visual Tab E-KTP vs KIA vs ARSIP (gabungan KTP+KIA)
 function applyTabUI(jenis) {
     const card17 = document.getElementById("card17");
     const cardContainer = document.getElementById("filterCardContainer");
+    const cardSent = document.getElementById("cardStatSent");
+    const cardPending = document.getElementById("cardStatPending");
+    const cardTotal = document.getElementById("cardStatTotal");
+    const labelTotal = document.getElementById("labelStatTotal");
     if (card17) card17.classList.remove("ring-2", "ring-rose-500", "bg-rose-100", "border-rose-500");
 
-    // KIA tidak mengenal perekaman 17 tahun / IKD → card disembunyikan, grid jadi 3 kolom
-    if (jenis === "KIA") {
+    const BASE = "flex-1 min-w-0 truncate text-xs sm:text-sm font-bold px-2 sm:px-4 py-2 rounded-lg transition-all";
+    const ON_BLUE = "bg-white text-blue-600 shadow-sm";
+    const ON_PURPLE = "bg-white text-purple-700 shadow-sm";
+    const OFF = "text-slate-600 hover:text-slate-900";
+    const ARSIP_FLEX = "flex items-center justify-center gap-1";
+    const btnKTP = document.getElementById("btnFilterKTP");
+    const btnKIA = document.getElementById("btnFilterKIA");
+    const btnArsip = document.getElementById("btnFilterArsip");
+
+    // Bekukan kontrol yang tidak berlaku di mode ARSIP (semua tahun, tanpa cetak)
+    const isArsip = (jenis === "ARSIP");
+    setArsipModeFrozen(isArsip);
+
+    if (isArsip) {
+        // Mode ARSIP: satu kartu TOTAL saja (KTP+KIA gabungan, semua tahun)
         filter17Active = false;
+        if (cardSent) cardSent.classList.add("hidden");
+        if (cardPending) cardPending.classList.add("hidden");
         if (card17) card17.classList.add("hidden");
+        if (cardTotal) cardTotal.classList.remove("hidden");
+        if (labelTotal) labelTotal.innerText = "Total Arsip";
+        if (cardContainer) cardContainer.style.gridTemplateColumns = "repeat(1, minmax(0, 1fr))";
+    } else if (jenis === "KIA") {
+        // KIA tidak mengenal perekaman 17 tahun / IKD → card disembunyikan, grid jadi 3 kolom
+        filter17Active = false;
+        if (cardSent) cardSent.classList.remove("hidden");
+        if (cardPending) cardPending.classList.remove("hidden");
+        if (card17) card17.classList.add("hidden");
+        if (cardTotal) cardTotal.classList.remove("hidden");
+        if (labelTotal) labelTotal.innerText = "Total";
         if (cardContainer) cardContainer.style.gridTemplateColumns = "repeat(3, minmax(0, 1fr))";
     } else {
+        if (cardSent) cardSent.classList.remove("hidden");
+        if (cardPending) cardPending.classList.remove("hidden");
         if (card17) card17.classList.remove("hidden");
+        if (cardTotal) cardTotal.classList.remove("hidden");
+        if (labelTotal) labelTotal.innerText = "Total";
         if (cardContainer) cardContainer.style.gridTemplateColumns = "";
     }
 
-    const btnKTP = document.getElementById("btnFilterKTP");
-    const btnKIA = document.getElementById("btnFilterKIA");
-    if (!btnKTP || !btnKIA) return;
+    if (!btnKTP || !btnKIA || !btnArsip) return;
 
+    // Kembalikan class tepat tanpa duplikasi (aktif vs idle) — basis responsif dipertahankan
     if (jenis === "KTP") {
-        btnKTP.className = "text-sm font-bold px-4 py-2 rounded-lg bg-white text-blue-600 shadow-sm transition-all";
-        btnKIA.className = "text-sm font-bold px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition-all";
+        btnKTP.className = `${BASE} ${ON_BLUE}`;
+        btnKIA.className = `${BASE} ${OFF}`;
+        btnArsip.className = `${BASE} ${ARSIP_FLEX} ${OFF}`;
+    } else if (jenis === "KIA") {
+        btnKIA.className = `${BASE} ${ON_BLUE}`;
+        btnKTP.className = `${BASE} ${OFF}`;
+        btnArsip.className = `${BASE} ${ARSIP_FLEX} ${OFF}`;
     } else {
-        btnKIA.className = "text-sm font-bold px-4 py-2 rounded-lg bg-white text-blue-600 shadow-sm transition-all";
-        btnKTP.className = "text-sm font-bold px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition-all";
+        btnArsip.className = `${BASE} ${ARSIP_FLEX} ${ON_PURPLE}`;
+        btnKTP.className = `${BASE} ${OFF}`;
+        btnKIA.className = `${BASE} ${OFF}`;
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+// Bekukan / cairkan kontrol tahun & tombol aksi saat mode ARSIP aktif
+function setArsipModeFrozen(isArsip) {
+    const wrapperTahun = document.getElementById("wrapperSelectTahun");
+    const btnPrint = document.getElementById("btnPrintRW");
+    const btnUnsync = document.getElementById("btnUnsyncAll");
+    if (wrapperTahun) {
+        wrapperTahun.classList.toggle("opacity-40", isArsip);
+        wrapperTahun.classList.toggle("pointer-events-none", isArsip);
+        wrapperTahun.classList.toggle("select-none", isArsip);
+        wrapperTahun.title = isArsip ? "Mode ARSIP menampilkan semua tahun" : "";
+    }
+    if (btnPrint) {
+        btnPrint.disabled = isArsip;
+        btnPrint.classList.toggle("opacity-40", isArsip);
+        btnPrint.classList.toggle("cursor-not-allowed", isArsip);
+        btnPrint.title = isArsip ? "Cetak Laporan RW tidak tersedia di mode ARSIP" : "Cetak Laporan RW";
+    }
+    if (btnUnsync) {
+        btnUnsync.disabled = isArsip;
+        btnUnsync.classList.toggle("opacity-40", isArsip);
+        btnUnsync.classList.toggle("cursor-not-allowed", isArsip);
+        btnUnsync.title = isArsip ? "Reset Cek Fisik tidak tersedia di mode ARSIP" : "Reset status pencocokan berkas fisik menjadi BELUM";
     }
 }
 
-// Filter Tab: E-KTP vs KIA (Instan dari memori klien tanpa hit DB)
-function filterJenis(jenis) {
+// Muat seluruh arsip lintas tahun langsung dari database (scope=all + dekripsi)
+async function loadArsipAll(ignoreCache = false) {
+    searchedQueries.clear();
+    hideDeepPromptBanner();
+    hideSearchOnDemandBanner();
+
+    const overlay = document.getElementById("loadingOverlay");
+    const cacheKey = AppCache.getKey("ALL");
+    const cachedData = !ignoreCache ? AppCache.get(cacheKey) : null;
+
+    // Cache ALL valid → tampilkan seketika tanpa hit D1
+    if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+        if (overlay) overlay.classList.add("hidden");
+        allData = cachedData;
+        if (typeof updateYearDropdown === "function") updateYearDropdown();
+        applyClientFilters(false);
+        updateStatsFromClient(allData);
+        return;
+    }
+
+    if (overlay) overlay.classList.remove("hidden");
+    try {
+        const res = await fetch(`/api/berkas?scope=all`, {
+            headers: getAuthHeaders()
+        });
+        const result = await res.json();
+        if (!result.success) {
+            showToast(result.error || "Gagal memuat data arsip", "error");
+            return;
+        }
+
+        allData = await Promise.all(result.data.map(async (row) => {
+            const nama = await AppCrypto.decrypt(row.nama_encrypted, appKey);
+            const nik = await AppCrypto.decrypt(row.nik_encrypted, appKey);
+            const alamat = await AppCrypto.decrypt(row.alamat_encrypted, appKey);
+
+            return {
+                ...row,
+                nama_decrypted: (nama || "").toUpperCase(),
+                nik_decrypted: nik,
+                alamat_decrypted: (alamat || "").toUpperCase()
+            };
+        }));
+
+        AppCache.set(cacheKey, allData);
+
+        if (Array.isArray(result.years) && result.years.length > 0) {
+            updateYearDropdown(result.years);
+        }
+
+        applyClientFilters(false);
+        updateStatsFromClient(allData);
+    } catch (err) {
+        console.error("Gagal load arsip:", err);
+        showToast("Terjadi kesalahan saat memuat arsip: " + (err.message || err), "error");
+    } finally {
+        if (overlay) overlay.classList.add("hidden");
+    }
+}
+
+// Filter Tab: E-KTP vs KIA vs ARSIP (ARSIP = gabungan KTP+KIA, semua tahun dari DB)
+async function filterJenis(jenis) {
+    if (jenis !== "KTP" && jenis !== "KIA" && jenis !== "ARSIP") jenis = "KTP";
     activeJenis = jenis;
     sessionStorage.setItem("ktp_active_jenis", jenis);
     filter17Active = false;
@@ -112,12 +243,18 @@ function filterJenis(jenis) {
     sessionStorage.setItem("ktp_current_page", "1");
 
     applyTabUI(jenis);
+    if (jenis === "ARSIP") {
+        await loadArsipAll();
+        return;
+    }
     applyClientFilters(true);
     updateStatsFromClient(allData);
 }
 
 // Ubah Tahun dari Dropdown Navbar (Memuat per-tahun secara hemat & terisolasi)
 async function changeTahun(year) {
+    // Mode ARSIP menampilkan semua tahun → dropdown dibekukan
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") return;
     activeYear = year;
     sessionStorage.setItem("ktp_active_year", year);
     currentPage = 1;
@@ -150,7 +287,7 @@ function changePage(newPage) {
 
 // Toggle Filter Khusus: Perekaman 17 Tahun (AJUKAN IKD) — hanya berlaku untuk E-KTP
 function toggleFilter17() {
-    if (activeJenis === "KIA") return;
+    if (activeJenis === "KIA" || activeJenis === "ARSIP") return;
     filter17Active = !filter17Active;
     currentPage = 1;
 
@@ -163,6 +300,8 @@ function toggleFilter17() {
 
 // Filter Cepat melalui Klik Card Statistik
 function filterByCard(status) {
+    // Mode ARSIP hanya punya satu kartu TOTAL → klik card tidak memfilter
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") return;
     if (filter17Active) {
         filter17Active = false;
     }
@@ -218,6 +357,8 @@ function resetFilters() {
 
 // Filter Status Cepat
 function setFilterStatus(status) {
+    // Mode ARSIP hanya punya satu kartu TOTAL → abaikan filter status
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") return;
     if (filter17Active) {
         filter17Active = false;
     }
@@ -319,7 +460,27 @@ function updateCardStatsActiveState() {
     }
 
     // Penegakan akhir: fungsi ini menimpa className via resetCard, jadi status
-    // sembunyi card 17 Thn untuk tab KIA harus diterapkan ulang di sini
+    // sembunyi card untuk tab KIA / ARSIP harus diterapkan ulang di sini
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") {
+        const cSent = document.getElementById("cardStatSent");
+        const cPending = document.getElementById("cardStatPending");
+        const c17 = document.getElementById("card17");
+        const container = document.getElementById("filterCardContainer");
+        const labelTotal = document.getElementById("labelStatTotal");
+        if (cSent) cSent.classList.add("hidden");
+        if (cPending) cPending.classList.add("hidden");
+        if (c17) c17.classList.add("hidden");
+        if (labelTotal) labelTotal.innerText = "Total Arsip";
+        if (container) container.style.gridTemplateColumns = "repeat(1, minmax(0, 1fr))";
+        // Sorot satu-satunya kartu TOTAL sebagai aktif
+        if (cardTotal) {
+            cardTotal.className = "stat-card relative bg-purple-50/70 border-2 border-purple-600 ring-2 ring-purple-500/20 rounded-xl py-2 sm:py-3 px-1.5 sm:px-3 cursor-pointer transition select-none shadow-xs";
+            if (dotTotal) dotTotal.classList.remove("hidden");
+            if (labelTotal) labelTotal.className = "block text-[11px] uppercase tracking-wider font-bold text-purple-700 leading-none";
+            if (numTotal) numTotal.className = "text-sm sm:text-2xl font-extrabold text-purple-900 leading-none";
+        }
+        return;
+    }
     if (typeof activeJenis !== "undefined" && activeJenis === "KIA") {
         const c17 = document.getElementById("card17");
         const container = document.getElementById("filterCardContainer");
@@ -403,12 +564,18 @@ function applyClientFilters(resetPage = true, allowOnDemand = true) {
         if (btnClear) btnClear.classList.add("hidden");
         if (bannerInfo) bannerInfo.classList.add("hidden");
         freezeElements.forEach(el => el && el.classList.remove("opacity-40", "pointer-events-none", "select-none"));
+        // Mode ARSIP: tahun tetap beku (semua tahun) walau tidak sedang mencari
+        if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP" && typeof setArsipModeFrozen === "function") {
+            setArsipModeFrozen(true);
+        }
     }
+
+    const isArsipMode = (typeof activeJenis !== "undefined" && activeJenis === "ARSIP");
 
     // 1. Filter Data
     filteredData = allData.filter(item => {
         // MODE PENCARIAN UNIVERSAL BEBAS (BERADA DI LANGIT - PRIORITAS UTAMA):
-        // Tidak dibatasi oleh filter RW, Status Pengambilan (Ambil/Belum), Sync, 17 Tahun, Jenis Tab (KTP/KIA), dan Tahun!
+        // Tidak dibatasi oleh filter RW, Status Pengambilan (Ambil/Belum), Sync, 17 Tahun, Jenis Tab (KTP/KIA/ARSIP), dan Tahun!
         if (isSearching) {
             const nama = (item.nama_decrypted || "").toLowerCase();
             const nik = (item.nik_decrypted || "").toLowerCase();
@@ -429,8 +596,30 @@ function applyClientFilters(resetPage = true, allowOnDemand = true) {
             );
         }
 
+        const isArsip = (item.hubungan_pengambil === "ARSIP");
+
+        // MODE ARSIP (Ketika kolom pencarian KOSONG):
+        // Gabungan KTP+KIA yang berstatus ARSIP, SEMUA TAHUN (abaikan tahun, jenis, status, 17 tahun)
+        if (isArsipMode) {
+            if (!isArsip) return false;
+
+            // D. Filter RW (tetap berlaku)
+            if (rw !== "ALL" && String(item.rw) !== rw) return false;
+
+            // F. Filter Sinkronisasi (tetap berlaku)
+            if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
+
+            return true;
+        }
+
         // MODE FILTER NORMAL (Ketika kolom pencarian KOSONG):
         // Kembali ke settingan terakhir: jenis tab (KTP/KIA), tahun, 17 tahun, RW, status, dan sync
+        // Arsip keluar dari antrean aktif → disembunyikan dari tab KTP/KIA, hanya tampil di tab ARSIP.
+
+        // A0. Kecualikan ARSIP dari tab normal
+        if (isArsip) {
+            return false;
+        }
 
         // A. Filter Jenis Berkas (Tab E-KTP vs KIA)
         if (item.jenis_berkas && item.jenis_berkas !== activeJenis) {
@@ -598,9 +787,8 @@ async function executeDeepSearch(query) {
                 }));
                 allData = [...allData, ...decryptedNewRows];
 
-                // Update cache tahun ini
-                const targetYear = typeof activeYear !== "undefined" ? activeYear : new Date().getFullYear().toString();
-                AppCache.set(AppCache.getKey(targetYear), allData);
+                // Update cache mode aktif (ARSIP → cache ALL, normal → cache tahun)
+                AppCache.set(AppCache.getKey(), allData);
             }
 
             if (Array.isArray(result.years) && result.years.length > 0) {
@@ -625,7 +813,7 @@ async function executeDeepSearch(query) {
         } else {
             console.error("Gagal deep search:", err);
             hideSearchOnDemandBanner();
-            alert("Gagal melakukan pencarian database: " + err.message);
+            showToast("Gagal melakukan pencarian database: " + err.message, "error");
         }
     }
 }

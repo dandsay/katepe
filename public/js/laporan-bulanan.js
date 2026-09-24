@@ -340,7 +340,7 @@
             }, 400);
 
         } catch (err) {
-            alert("Gagal menyiapkan laporan cetak semua: " + err.message);
+            showToast("Gagal menyiapkan laporan cetak semua: " + err.message, "error");
         }
     };
 

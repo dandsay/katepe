@@ -353,89 +353,9 @@ export async function handleUnsyncAll(request, env, url) {
     }
 }
 
-// 6. POST /api/berkas/batch (Batch Upsert Cerdas Sinkronisasi Spreadsheet)
-export async function handleBatchUpsert(request, env) {
-    try {
-        const { items } = await request.json();
-        if (!Array.isArray(items) || items.length === 0) {
-            return jsonResponse({ success: false, error: "Items array kosong" }, 400);
-        }
-
-        // Upsert cerdas berbasis Kunci Komposit Unik: NIK + Tgl Datang + Jenis Berkas
-        const upsertStmt = env.DB.prepare(`
-            INSERT INTO rekap_berkas (
-                no_urut, tgl_datang, jenis_berkas, nik_hash, nik_encrypted, 
-                nama_encrypted, alamat_encrypted, rw, hubungan_pengambil, 
-                tgl_ambil, status, kelahiran, keterangan, sinkronisasi
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(nik_hash, tgl_datang, jenis_berkas) DO UPDATE SET
-                no_urut = excluded.no_urut,
-                nama_encrypted = excluded.nama_encrypted,
-                alamat_encrypted = excluded.alamat_encrypted,
-                rw = excluded.rw,
-                hubungan_pengambil = CASE 
-                    WHEN (excluded.hubungan_pengambil IS NOT NULL AND excluded.hubungan_pengambil != '' AND excluded.hubungan_pengambil != 'Belum Diketahui') 
-                        THEN excluded.hubungan_pengambil 
-                    ELSE rekap_berkas.hubungan_pengambil 
-                END,
-                tgl_ambil = CASE 
-                    WHEN (excluded.tgl_ambil IS NOT NULL AND excluded.tgl_ambil != '') 
-                        THEN excluded.tgl_ambil 
-                    ELSE rekap_berkas.tgl_ambil 
-                END,
-                status = CASE 
-                    WHEN (excluded.tgl_ambil IS NOT NULL AND excluded.tgl_ambil != '') 
-                        THEN 'SELESAI'
-                    WHEN (rekap_berkas.tgl_ambil IS NOT NULL AND rekap_berkas.tgl_ambil != '') 
-                        THEN 'SELESAI'
-                    ELSE excluded.status 
-                END,
-                kelahiran = excluded.kelahiran,
-                keterangan = excluded.keterangan,
-                sinkronisasi = excluded.sinkronisasi,
-                updated_at = CURRENT_TIMESTAMP
-        `);
-
-        const CHUNK_SIZE = 50;
-        let processed = 0;
-
-        for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-            const chunk = items.slice(i, i + CHUNK_SIZE);
-            
-            const batchStatements = [];
-            for (const item of chunk) {
-                batchStatements.push(upsertStmt.bind(
-                    item.no_urut,
-                    item.tgl_datang,
-                    item.jenis_berkas,
-                    item.nik_hash,
-                    item.nik_encrypted,
-                    item.nama_encrypted,
-                    item.alamat_encrypted || "",
-                    item.rw,
-                    item.hubungan_pengambil || "Belum Diketahui",
-                    item.tgl_ambil || null,
-                    item.status,
-                    item.kelahiran || "",
-                    item.keterangan,
-                    item.sinkronisasi || "BELUM"
-                ));
-            }
-
-            await env.DB.batch(batchStatements);
-            processed += chunk.length;
-        }
-
-        const totalRow = await env.DB.prepare("SELECT COUNT(*) as total FROM rekap_berkas").first();
-
-        return jsonResponse({ 
-            success: true, 
-            count: processed, 
-            dbTotal: totalRow?.total || 0,
-            message: "Sinkronisasi berhasil dengan resolusi cerdas data terupdate."
-        });
-    } catch (err) {
-        console.error("Error batch upsert berkas:", err);
-        return jsonResponse({ success: false, error: "Gagal memproses sinkronisasi data berkas." }, 500);
-    }
-}
+// 6. POST /api/berkas/batch — DIHAPUS PERMANEN.
+// Migrasi spreadsheet (era Google Apps Script) telah selesai dan FE web tidak
+// pernah memanggil endpoint ini. Handler lama (upsert massal) dibuang karena
+// melewati seluruh penjagaan validasi (tanggal/enum/duplikat) yang dijaga ketat
+// di jalur manual — risiko integritas data tanpa pemanggil aktif.
+// Lihat src/index.js: permintaan ke /api/berkas/batch kini selalu balas 410 Gone.
