@@ -238,13 +238,22 @@ test('portal cipher beku: scramble deterministik ala brankas + terpasang di port
   assert.equal(PC.renderCipherTick(base, PC.PHASE.INTRO + PC.PHASE.DECRYPT - 1), base);
   assert.equal(PC.renderCipherTick(base, PC.PHASE.INTRO + PC.PHASE.DECRYPT), base);
   assert.match(PC.rotorTick(0, 0), /^[A-Z]$/);
+  // Paritas engine brankas: QWERTY-Caesar +2, digit utuh, rotor PIN/KEY, slowScramble
+  assert.equal(PC.qwertyShift2('qwerty'), 'ertyui');
+  assert.equal(PC.qwertyShift2('p'), 's');
+  assert.equal(PC.encChar('q', 0, 0, 7), 'E');
+  assert.equal(PC.encChar('5', 0, 3, 7), '5');
+  assert.match(PC.encChar(' ', 0, 5, 7), /^[A-Z]$/);
+  assert.match(PC.slowScramble('Buka', 0), /^[A-Z]+$/);
+  assert.equal(PC.rotorTick(48, 0) + PC.rotorTick(48, 1) + PC.rotorTick(48, 2), 'PIN');
+  assert.equal(PC.rotorTick(120, 0) + PC.rotorTick(120, 1) + PC.rotorTick(120, 2), 'KEY');
   assert.equal(typeof globalThis.window.initPortalCipher, 'function');
   // Intro langsung acak penuh (bukan dari nol): start tick = INTRO - 1
   const cipherSrc = readJS('cipher.js');
   assert.ok(cipherSrc.includes('PHASE.INTRO - 1'), 'intro wajib mulai dari acak penuh');
   // Terpasang hanya pada frasa kunci portal login (selebihnya statis)
   const html = readRoot('public/index.html');
-  assert.match(html, /Database kependudukan <span data-scramble[^>]*>Terenkripsi End-to-end<\/span> dengan kunci lokal\./);
+  assert.match(html, /Database kependudukan <span data-scramble[^>]*>Terenkripsi End-to-End<\/span> dengan kunci lokal\./);
   assert.match(html, /js\/cipher\.js\?v=/);
   // Hormati reduced-motion + kunci anti layout-shift
   const css = readRoot('public/css/style.css');
