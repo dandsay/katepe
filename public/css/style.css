@@ -99,6 +99,42 @@ body {
     transform: scale(0.98);
 }
 
+/* Portal Cipher — animasi teks enkripsi ala brankas (scramble deterministik).
+   Dipakai baris deskripsi portal login via atribut data-scramble. */
+[data-scramble] {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+}
+/* Kunci tinggi baris portal agar kartu login tak naik-turun saat acak penuh */
+#loginModal .portal-cipher-desc {
+    min-height: 1.2rem;
+    display: block;
+}
+/* Aksen frasa enkripsi: mono tebal biru agar terlihat seperti segel */
+#loginModal .portal-cipher-desc .cipher-accent {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700;
+    color: #1d4ed8;
+    white-space: nowrap;
+}
+/* Bayangan tulisan berputar (orbit biru lembut, selaras tema terang) */
+.spin-shadow {
+    animation: shadow-orbit 3.2s linear infinite;
+}
+@keyframes shadow-orbit {
+    0% { text-shadow: 2px 0 0 rgba(37, 99, 235, 0.22); }
+    25% { text-shadow: 0 2px 0 rgba(37, 99, 235, 0.22); }
+    50% { text-shadow: -2px 0 0 rgba(139, 92, 246, 0.22); }
+    75% { text-shadow: 0 -2px 0 rgba(139, 92, 246, 0.22); }
+    100% { text-shadow: 2px 0 0 rgba(37, 99, 235, 0.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .spin-shadow {
+        animation: none;
+    }
+}
+
 /* --- PRINT STYLES (PERSIS SEPERTI DASHBOARD GAS) --- */
 @media print {
     @page {

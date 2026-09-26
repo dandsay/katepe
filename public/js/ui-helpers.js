@@ -3,10 +3,43 @@
  * Modul untuk badge visual (RW, Pengambil), notifikasi toast, clipboard, dan statistik DB
  */
 
+// ==============================================================================
+// KEAMANAN OUTPUT (ANTI-XSS)
+// ==============================================================================
+// escapeHtml: mengubah karakter HTML spesial menjadi entitas teks, sehingga data
+// dinamis (nama, alamat, keterangan, dll) ditampilkan sebagai TEKS dan TIDAK
+// dieksekusi sebagai tag/script saat disisipkan ke innerHTML.
+function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// escapeForJsAttr: untuk data yang disisipkan ke DALAM string JS pada atribut
+// inline (mis. onclick="fn('DATA')"). Meng-escape konteks JS sekaligus HTML
+// agar tidak bisa keluar dari string maupun atribut.
+function escapeForJsAttr(str) {
+    return String(str === null || str === undefined ? "" : str)
+        .replace(/\\/g, "\\\\")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;")
+        .replace(/\r?\n/g, "\\n");
+}
+
+window.escapeHtml = escapeHtml;
+window.escapeForJsAttr = escapeForJsAttr;
+
 // Badge Warna RW (001 - 006) - Bersih dan Monokrom agar tidak bertabrakan dengan latar baris
 function getRWBadge(rw) {
     const rwNum = String(rw || "").padStart(3, '0');
-    return `<span class="px-2 py-0.5 rounded-md font-semibold text-xs bg-slate-100/90 text-slate-700 border border-slate-200/80 inline-block">RW ${rwNum}</span>`;
+    return `<span class="px-2 py-0.5 rounded-md font-semibold text-xs bg-slate-100/90 text-slate-700 border border-slate-200/80 inline-block">RW ${escapeHtml(rwNum)}</span>`;
 }
 
 // Aksen Border-Left Berdasarkan RW
@@ -38,8 +71,8 @@ function getPengambilBadge(hubungan, tglAmbil) {
 
     return `
         <div class="space-y-0.5">
-            <span class="px-2 py-0.5 rounded-md font-semibold text-xs border inline-block ${badgeCls}">${h}</span>
-            <div class="text-[11px] text-slate-500 font-medium">Diterima: ${formatDate(tglAmbil)}</div>
+            <span class="px-2 py-0.5 rounded-md font-semibold text-xs border inline-block ${badgeCls}">${escapeHtml(h)}</span>
+            <div class="text-[11px] text-slate-500 font-medium">Diterima: ${escapeHtml(formatDate(tglAmbil))}</div>
         </div>
     `;
 }
@@ -108,7 +141,7 @@ function showToast(message, type = "success") {
     const icon = type === "success" 
         ? '<i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>' 
         : '<i data-lucide="alert-triangle" class="w-4 h-4 text-rose-200 shrink-0"></i>';
-    toast.innerHTML = `${icon}<span>${message}</span>`;
+    toast.innerHTML = `${icon}<span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
     lucide.createIcons();
 

@@ -58,7 +58,7 @@ function printReport() {
         const headerHtml = `
             <div class="text-center mb-4 font-serif text-black" style="text-align: center; margin-bottom: 16px; font-family: 'Times New Roman', serif;">
                 <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0;">REKAP LAPORAN ${typeText} KELURAHAN ALUN-ALUN CONTONG</h1>
-                <h2 style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 4px 0 0 0;">${yearText} - RW ${rw}</h2>
+                <h2 style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 4px 0 0 0;">${yearText} - RW ${escapeHtml(rw)}</h2>
                 <div style="width: 100%; height: 2px; background-color: black; margin-top: 8px; margin-bottom: 16px;"></div>
             </div>
         `;
@@ -93,11 +93,11 @@ function printReport() {
             tableHtml += `
                 <tr>
                     <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${i + 1}</td>
-                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center; font-family: monospace;">${maskedNik}</td>
-                    <td style="border: 1px solid black; padding: 4px 6px; font-weight: bold; text-transform: uppercase;">${(row.nama_decrypted || "").toUpperCase()}</td>
-                    <td style="border: 1px solid black; padding: 4px 6px; text-transform: uppercase;">${(row.alamat_decrypted || "-").toUpperCase()}</td>
-                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${row.rw}</td>
-                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${tglMasuk}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center; font-family: monospace;">${escapeHtml(maskedNik)}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; font-weight: bold; text-transform: uppercase;">${escapeHtml((row.nama_decrypted || "").toUpperCase())}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; text-transform: uppercase;">${escapeHtml((row.alamat_decrypted || "-").toUpperCase())}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${escapeHtml(row.rw)}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${escapeHtml(tglMasuk)}</td>
                     <td style="border: 1px solid black; padding: 4px 6px; text-align: center;">${statusText}</td>
                 </tr>
             `;
@@ -135,7 +135,7 @@ function printReport() {
                 <!-- Info Kontak Kelurahan & Penyelia RW -->
                 <div style="text-align: center; margin-top: 10px;">
                     <p style="color: #dc2626; font-weight: bold; font-size: 11.5px; margin: 0;">
-                        * Info Lebih lanjut hubungi WA kelurahan 0821 4770 2966 atau Penyelia RW ${rw}
+                        * Info Lebih lanjut hubungi WA kelurahan 0821 4770 2966 atau Penyelia RW ${escapeHtml(rw)}
                     </p>
                 </div>
 

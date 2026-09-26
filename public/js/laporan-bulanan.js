@@ -57,7 +57,7 @@
             if (tableArea) {
                 tableArea.innerHTML = `
                     <div class="p-8 text-center text-rose-500 text-xs font-semibold">
-                        Gagal memuat rekap data laporan: ${err.message}
+                        Gagal memuat rekap data laporan: ${escapeHtml(err.message)}
                     </div>
                 `;
             }
@@ -214,7 +214,7 @@
                 <tr class="${rowBg} text-center transition">
                     <td class="border border-slate-300 p-2 font-mono">${index + 1}</td>
                     <td class="border border-slate-300 p-2 font-mono">${row.tahun}</td>
-                    <td class="border border-slate-300 p-2 text-left pl-3 font-semibold text-slate-900">${row.bulan}</td>
+                    <td class="border border-slate-300 p-2 text-left pl-3 font-semibold text-slate-900">${escapeHtml(row.bulan)}</td>
                     <td class="border border-slate-300 p-2 font-mono">${row.sisaKtpBulanSebelumnya}</td>
                     <td class="border border-slate-300 p-2 font-mono">${row.ktpElYangDatang}</td>
                     <td class="border border-slate-300 p-2 font-mono ${highlightCell}">${row.jumlah}</td>

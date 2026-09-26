@@ -58,7 +58,7 @@ async function executeBatalPengambilan() {
     openModalKonfirmasi({
         judul: "Batalkan Pengambilan?",
         subjudul: "Aksi ini akan mengubah status berkas.",
-        isi: `<div class="font-bold text-slate-800">${item.nama_decrypted}</div>
+        isi: `<div class="font-bold text-slate-800">${escapeHtml(item.nama_decrypted)}</div>
               <div class="text-xs text-slate-500">Berkas akan dikembalikan ke status <b>Tersedia / Belum Diambil</b>.</div>`,
         labelYa: "Ya, Batalkan",
         warna: "amber",
@@ -284,7 +284,7 @@ function onNIKInputChange() {
 
             previewBox.innerHTML = `
                 <div>Kelahiran: <b>${info.formattedBirth}</b> &bull; Umur: <b>${info.age} thn</b></div>
-                <div>Kategori: <b>${info.keterangan}</b></div>
+                <div>Kategori: <b>${escapeHtml(info.keterangan)}</b></div>
                 <div>${statusText}</div>
             `;
             previewBox.classList.remove("hidden");
@@ -439,10 +439,10 @@ function showDuplikatModal(conflict, payload, info) {
             return `
             <div class="flex items-center justify-between gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs">
                 <div class="min-w-0">
-                    <div class="font-bold text-slate-800 truncate">${info.nama}</div>
-                    <div class="text-slate-500 font-medium">Tgl Datang: ${tgl} &bull; ${row.keterangan || "-"}</div>
+                    <div class="font-bold text-slate-800 truncate">${escapeHtml(info.nama)}</div>
+                    <div class="text-slate-500 font-medium">Tgl Datang: ${escapeHtml(tgl)} &bull; ${escapeHtml(row.keterangan || "-")}</div>
                 </div>
-                <span class="shrink-0 px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-amber-300 text-amber-700">${row.status || "-"}</span>
+                <span class="shrink-0 px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-amber-300 text-amber-700">${escapeHtml(row.status || "-")}</span>
             </div>`;
         }).join("");
     }
@@ -644,7 +644,7 @@ function onEditNIKChange() {
 
             previewBox.innerHTML = `
                 <div>Kelahiran: <b>${info.formattedBirth}</b> &bull; Umur: <b>${info.age} thn</b></div>
-                <div>Kategori: <b>${info.keterangan}</b></div>
+                <div>Kategori: <b>${escapeHtml(info.keterangan)}</b></div>
                 <div>${statusText}</div>
             `;
             previewBox.classList.remove("hidden");

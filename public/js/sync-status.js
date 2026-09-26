@@ -109,7 +109,7 @@ async function toggleArsip(id) {
         openModalKonfirmasi({
             judul: "Batalkan Status ARSIP?",
             subjudul: "Berkas akan kembali ke antrean normal.",
-            isi: `<div class="font-bold text-slate-800">${item.nama_decrypted}</div>
+            isi: `<div class="font-bold text-slate-800">${escapeHtml(item.nama_decrypted)}</div>
                   <div class="text-xs text-slate-500">Berkas akan dikembalikan ke status <b>Tersedia</b>.</div>`,
             labelYa: "Ya, Batalkan ARSIP",
             warna: "amber",
@@ -156,7 +156,7 @@ async function toggleArsip(id) {
     openModalKonfirmasi({
         judul: "Tandai sebagai ARSIP?",
         subjudul: "Berkas akan keluar dari antrean aktif.",
-        isi: `<div class="font-bold text-slate-800">${item.nama_decrypted}</div>
+        isi: `<div class="font-bold text-slate-800">${escapeHtml(item.nama_decrypted)}</div>
               <div class="text-xs text-slate-500">Berkas berstatus <b>SELESAI</b> dan otomatis <b>dikecualikan</b> dari cetak Laporan RW.</div>`,
         labelYa: "Ya, Arsipkan",
         warna: "rose",

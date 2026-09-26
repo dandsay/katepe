@@ -5,6 +5,11 @@
 
 var searchedQueries = new Set();
 
+// Status filter terakhir tab normal sebelum masuk ARSIP.
+// Dipakai agar mode ARSIP selalu tampil sebagai tabel TOTAL (ALL),
+// lalu filter semula dikembalikan saat keluar ARSIP.
+var savedStatusBeforeArsip = null;
+
 // Muat dan Dekripsi Data Berkas dari Cloudflare D1 (Model Register Surat: 1x Load per Tahun Terpilih)
 async function loadData(forceRefresh = false) {
     // Mode ARSIP memegang dataset lintas-tahun → alihkan ke pemuat arsip
@@ -242,6 +247,18 @@ async function filterJenis(jenis) {
     currentPage = 1;
     sessionStorage.setItem("ktp_current_page", "1");
 
+    const selStatus = document.getElementById("selectStatus");
+    if (jenis === "ARSIP") {
+        // ARSIP selalu memakai tabel TOTAL — jangan bawa filter Diambil/Belum
+        // dari tab sebelumnya (nilai itu mengatur kolom tabel di renderUI).
+        if (selStatus && selStatus.value !== "ALL") savedStatusBeforeArsip = selStatus.value;
+        if (selStatus) selStatus.value = "ALL";
+    } else if (savedStatusBeforeArsip && selStatus) {
+        // Keluar ARSIP: kembalikan filter terakhir tab normal
+        selStatus.value = savedStatusBeforeArsip;
+        savedStatusBeforeArsip = null;
+    }
+
     applyTabUI(jenis);
     if (jenis === "ARSIP") {
         await loadArsipAll();
@@ -338,7 +355,9 @@ function resetFilters() {
     const selectStatus = document.getElementById("selectStatus");
     const selectSync = document.getElementById("selectSync");
     if (selectRW) selectRW.value = "ALL";
-    if (selectStatus) selectStatus.value = "PENDING";
+    // Mode ARSIP hanya punya tabel TOTAL — reset tidak boleh mengembalikan
+    // filter Diambil/Belum di sini
+    if (selectStatus) selectStatus.value = (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") ? "ALL" : "PENDING";
     if (selectSync) selectSync.value = "ALL";
 
     selectedRW = "ALL";
@@ -649,7 +668,7 @@ function applyClientFilters(resetPage = true, allowOnDemand = true) {
         if (status === "SENT" && !isSent) return false;
         if (status === "PENDING" && isSent) return false;
 
-        // F. Filter Sinkronisasi Spreadsheet
+        // F. Filter Status Pencocokan Fisik (SYNC / BELUM)
         if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
 
         return true;

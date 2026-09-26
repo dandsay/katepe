@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "algo": "sha256",
+  "files": {
+    "public/js/auth.js": "495f9e7e554d1f63b3fd3d8e5908c5e55adce46a46383287d7478c55c9263b93",
+    "public/js/cipher.js": "40939425e5a40b7e0b9438eb5a1113a1b37c1ed3ae4f3c678497c325d6fc74c7",
+    "public/js/crypto.js": "151ee531055716672e214c2992f3e00229d34e7eebad442944fb55cc1278b460",
+    "public/js/filter.js": "4f91ffc17869920b8613aea3582aff0246d3a273337136a49a5c345bc777d789",
+    "public/js/laporan-bulanan.js": "79758aadbce09536150f327678179fec8a81160016231cc95d9cb83871e339ad",
+    "public/js/modals.js": "e1a4ef6617614fc7a8f25e48856c824784d4e19265872b4225bfe02878685b43",
+    "public/js/nik-parser.js": "67e010c210561e3fe3732e393d6387aeabf2769f376746cfce607dc9728503a2",
+    "public/js/print-rw.js": "f86e2b067c0204dbb7c1c03fb4055a95c059192ec32914a0404597fe828b4ece",
+    "public/js/sync-status.js": "91a29ec3965ccb314f8f7b833c246841001e7ac5d90799db06db9ae6bda0e55d",
+    "public/js/table-renderer.js": "6df761214a8033eed3e68343405c76abdb99abfb8603ac2813476a1648cab4d2",
+    "public/js/ui-helpers.js": "5747a543fe9097fcc82e9c2b166cb80d5cce15b9896ae1452499e98ce2b44db4",
+    "schema.sql": "43a31522eb43d997777d96a1909d7c3a84eedb831a594f670b0ed066a2417182",
+    "scripts/freeze.mjs": "86a8957caa0ccb5f8938fb7930bda341a7634ce9904a28383c936ad9b9ac6a6a",
+    "src/index.js": "866211062613ec00f6e4e1d20f590e8a8154861caf76a0da7972880a00accc1f",
+    "src/routes/auth.js": "0ce1723435769a5b00359d32093b719612312bc1fab404b7ce2c954f20a72cc9",
+    "src/routes/berkas.js": "aff752095b3b998cd6f2f2b47b381801521c0d3608380bb75ec3c06f79d29141",
+    "src/routes/laporan.js": "e250c0e94d1af6fa3ce6204e30ed5d3b2178982076db20780bddd3247e1b7330",
+    "src/routes/stats.js": "e7f2d225ca4f6f0f0898f8174bb9fd85171270ed2f2f13682f7947ecddea1614",
+    "src/utils/auth-crypto.js": "343e86f4b3bd52453a28b87f670f125a96c4f7c4433e75dccb97b1c4afb56b0d",
+    "src/utils/response.js": "9b9573a7c311e486327a63530d12c44dab93670edcbd664200d98af7d347d041",
+    "wrangler.jsonc": "e321794179f3a8f28c30739f84bc58620c29e7bc237474ac91c0ed1b4fe4d627"
+  }
+}

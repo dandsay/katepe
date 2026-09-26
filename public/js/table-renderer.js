@@ -210,9 +210,20 @@ function renderUI() {
         const age = NIKHelper.getAge(row);
         const isLansia = NIKHelper.isLansia(row);
 
+        // Keamanan: siapkan nilai untuk teks (escapeHtml) & untuk event handler (escapeForJsAttr)
+        const eNama = escapeHtml(row.nama_decrypted);
+        const eNik = escapeHtml(row.nik_decrypted);
+        const eAlamat = escapeHtml((row.alamat_decrypted || "Alamat belum diisi").toUpperCase());
+        const eAlamatAtauDash = escapeHtml((row.alamat_decrypted || "-").toUpperCase());
+        const eKeterangan = escapeHtml(row.keterangan || "-");
+        const eKelahiran = escapeHtml(row.kelahiran || "-");
+        const eRw = escapeHtml(row.rw || "-");
+        const eHubungan = escapeHtml(row.hubungan_pengambil || "Belum Diketahui");
+        const eCatatan = escapeHtml(row.catatan_admin || "");
+
         // Escape string untuk penggunaan aman pada inline HTML event handler
-        const safeNama = (row.nama_decrypted || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        const safeNik = (row.nik_decrypted || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const safeNama = escapeForJsAttr(row.nama_decrypted);
+        const safeNik = escapeForJsAttr(row.nik_decrypted);
 
         // Nomor urut: baris ARSIP tampil sebagai oval ungu + tulisan ARSIP di bawahnya
         const noCell = isArsip
@@ -224,11 +235,11 @@ function renderUI() {
 
         // Tombol sinkronisasi 1-klik, dipasang tepat di sebelah badge status
         const syncBtn = row.sinkronisasi === "SYNC"
-            ? `<button type="button" onclick="toggleSync(${row.id}, '${row.sinkronisasi}')" title="Sudah cocok fisik — klik untuk tandai BELUM" class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition shadow-2xs">
+            ? `<button type="button" onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Sudah cocok fisik — klik untuk tandai BELUM" class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition shadow-2xs">
                 <i data-lucide="check-check" class="w-3 h-3 shrink-0"></i>
                 <span>SYNC</span>
                </button>`
-            : `<button type="button" onclick="toggleSync(${row.id}, '${row.sinkronisasi}')" title="Belum dicek fisik — klik untuk tandai SYNC" class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-slate-500 border border-dashed border-slate-300 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 active:scale-95 transition shadow-2xs">
+            : `<button type="button" onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Belum dicek fisik — klik untuk tandai SYNC" class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-slate-500 border border-dashed border-slate-300 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 active:scale-95 transition shadow-2xs">
                 <i data-lucide="clipboard-check" class="w-3 h-3 shrink-0"></i>
                 <span>BELUM</span>
                </button>`;
@@ -285,10 +296,10 @@ function renderUI() {
             }
         } else if (isSent && cetakUlangInfo) {
             ketBadge = bolehCetakUlang
-                ? `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200" title="Sudah bisa cetak ulang sejak ${cetakUlangInfo.display}">${row.keterangan || "-"}</span>`
-                : `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200" title="Belum bisa cetak ulang — baru bisa ${cetakUlangInfo.display}">${row.keterangan || "-"}</span>`;
+                ? `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200" title="Sudah bisa cetak ulang sejak ${cetakUlangInfo.display}">${eKeterangan}</span>`
+                : `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200" title="Belum bisa cetak ulang — baru bisa ${cetakUlangInfo.display}">${eKeterangan}</span>`;
         } else {
-            ketBadge = `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80">${row.keterangan || "-"}</span>`;
+            ketBadge = `<span class="whitespace-nowrap inline-block px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80">${eKeterangan}</span>`;
         }
 
         // Flag "Belum Lapor?" (Opsi A): berkas lama yang kemungkinan sudah diambil
@@ -296,7 +307,7 @@ function renderUI() {
         // diinput berkas baru.
         const belumLapor = !!(row.catatan_admin && String(row.catatan_admin).includes("BELUM DILAPOR") && !isSent);
         const belumLaporBadge = belumLapor
-            ? `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${row.catatan_admin}">
+            ? `<span class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title="${eCatatan}">
                 <i data-lucide="flag" class="w-3 h-3 text-amber-600 shrink-0"></i>
                 <span>Belum Lapor?</span>
                </span>`
@@ -334,8 +345,8 @@ function renderUI() {
         const pengambilBadge = getPengambilBadge(row.hubungan_pengambil, row.tgl_ambil);
 
         const syncBadge = row.sinkronisasi === "SYNC"
-            ? `<button onclick="toggleSync(${row.id}, '${row.sinkronisasi}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition">SYNC</button>`
-            : `<button onclick="toggleSync(${row.id}, '${row.sinkronisasi}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition">BELUM</button>`;
+            ? `<button onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition">SYNC</button>`
+            : `<button onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition">BELUM</button>`;
 
         // A. Kartu Tampilan Mobile: Accordion Buka-Tutup dari ui_mobile.html
         const isCardOpen = expandedCardIds.has(row.id);
@@ -353,6 +364,7 @@ function renderUI() {
 
         let subText = isKIA ? (row.keterangan || "Cetak Biasa KIA") : (row.keterangan || "Cetak Biasa KTP");
         if (is17) subText = "Harap dampingi aktivasi IKD";
+        subText = escapeHtml(subText);
 
         const cardBorderTheme = is17 
             ? "border-rose-200/90 hover:border-rose-300" 
@@ -368,20 +380,20 @@ function renderUI() {
                     <div class="flex-1 min-w-0">
                         <!-- 1. Nama Warga Berdiri Sendiri -->
                         <h2 class="text-sm font-bold text-slate-900 tracking-tight leading-snug truncate cursor-pointer hover:text-blue-600 transition" onclick="copyToClipboard('${safeNama}', event)" title="Klik untuk salin nama: ${safeNama}">
-                            ${row.nama_decrypted}
+                            ${eNama}
                         </h2>
 
                         <!-- 2. Alamat -->
                         <p class="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium truncate uppercase">
                             <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
-                            <span class="truncate">${(row.alamat_decrypted || "Alamat belum diisi").toUpperCase()}</span>
+                            <span class="truncate">${eAlamat}</span>
                         </p>
 
                         <!-- 3. Di Bawah Alamat: Tempatkan RW & Tag Khusus -->
                         <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                            <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] leading-none border border-slate-200">RW ${row.rw || "-"}</span>
+                            <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] leading-none border border-slate-200">RW ${eRw}</span>
                             ${belumLapor ? `
-                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded leading-none" title="${row.catatan_admin}">
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded leading-none" title="${eCatatan}">
                                     <i data-lucide="flag" class="w-2.5 h-2.5"></i>
                                     <span>Belum Lapor?</span>
                                 </span>` : ''
@@ -444,7 +456,7 @@ function renderUI() {
 
                         <div class="bg-white p-2 rounded-lg border border-slate-200/70">
                             <span class="text-[11px] uppercase font-semibold text-slate-400 block mb-0.5">Tgl Lahir</span>
-                            <span class="font-medium text-slate-700 text-xs">${row.kelahiran || "-"} ${age ? `<span class="text-slate-500 font-normal">(${age} Thn)</span>` : ''}</span>
+                            <span class="font-medium text-slate-700 text-xs">${eKelahiran} ${age ? `<span class="text-slate-500 font-normal">(${age} Thn)</span>` : ''}</span>
                         </div>
 
                         <div class="bg-white p-2 rounded-lg border border-slate-200/70">
@@ -456,7 +468,7 @@ function renderUI() {
                             <span class="text-[11px] uppercase font-semibold text-slate-400 block mb-0.5">Status Pengambilan</span>
                             ${isSent ? `
                             <span class="text-xs block truncate ${row.hubungan_pengambil === 'ARSIP' ? 'text-purple-700' : 'text-emerald-700'} font-semibold">
-                                Penerima: ${row.hubungan_pengambil || "Belum Diketahui"}
+                                Penerima: ${eHubungan}
                             </span>
                             <span class="text-xs text-slate-600 font-medium block">Diterima: ${fmtTglAmbil}</span>
                             ` : `
@@ -472,9 +484,9 @@ function renderUI() {
 
                     <!-- Baris Aksi Administratif: grid 3 kolom penuh agar tombol tidak sesak -->
                     <div class="grid grid-cols-3 gap-1.5">
-                        <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas')}" class="px-2 py-1.5 justify-center ${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'text-purple-800 bg-purple-100 border-purple-300 font-semibold' : 'text-slate-600 bg-white border-slate-200 font-medium'} border rounded-lg ${arsipLocked ? '' : 'hover:bg-purple-50'} flex items-center gap-1 text-[11px] transition">
-                            <i data-lucide="${arsipLocked ? 'lock' : 'archive'}" class="w-3 h-3 ${arsipLocked ? 'text-slate-400' : (isArsip ? 'text-purple-700' : 'text-slate-500')}"></i>
-                            <span>${isArsip ? 'ARSIP' : 'Arsipkan'}</span>
+                        <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan ARSIP — kembalikan ke antrean aktif' : 'Arsipkan Berkas')}" class="px-2 py-1.5 justify-center ${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'text-amber-800 bg-amber-100 border-amber-300 font-semibold' : 'text-slate-600 bg-white border-slate-200 font-medium'} border rounded-lg ${arsipLocked ? '' : (isArsip ? 'hover:bg-amber-200' : 'hover:bg-purple-50')} flex items-center gap-1 text-[11px] transition">
+                            <i data-lucide="${arsipLocked ? 'lock' : (isArsip ? 'undo-2' : 'archive')}" class="w-3 h-3 ${arsipLocked ? 'text-slate-400' : (isArsip ? 'text-amber-700' : 'text-slate-500')}"></i>
+                            <span>${isArsip ? 'Batal Arsip' : 'Arsipkan'}</span>
                         </button>
                         <button onclick="openModalEdit(${row.id})" class="px-2.5 py-1.5 justify-center text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 text-[11px] font-medium transition">
                             <i data-lucide="edit-3" class="w-3 h-3 text-slate-500"></i>
@@ -502,21 +514,21 @@ function renderUI() {
             <td class="py-3 px-3 whitespace-nowrap overflow-hidden">
                 <div class="flex items-center gap-1.5" title="Arahkan mouse untuk membuka NIK lengkap / Klik salin NIK">
                     <span class="font-mono text-slate-800 font-semibold text-xs tracking-wider group-hover/row:hidden">${maskedNik}</span>
-                    <span class="font-mono text-blue-700 font-bold text-xs tracking-wider hidden group-hover/row:inline-block bg-white px-1.5 py-0.5 rounded border border-blue-200 select-all cursor-pointer transition" onclick="copyToClipboard('${safeNik}', event)" title="Klik untuk salin NIK: ${safeNik}">${row.nik_decrypted}</span>
+                    <span class="font-mono text-blue-700 font-bold text-xs tracking-wider hidden group-hover/row:inline-block bg-white px-1.5 py-0.5 rounded border border-blue-200 select-all cursor-pointer transition" onclick="copyToClipboard('${safeNik}', event)" title="Klik untuk salin NIK: ${safeNik}">${eNik}</span>
                     <button type="button" onclick="copyToClipboard('${safeNik}', event)" title="Salin NIK" class="opacity-0 group-hover/row:opacity-100 p-0.5 text-blue-600 hover:text-blue-800 rounded transition active:scale-90">
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
                 <div class="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
-                    <span>Lahir: <span class="font-medium text-slate-700">${row.kelahiran || "-"}</span></span>
+                    <span>Lahir: <span class="font-medium text-slate-700">${eKelahiran}</span></span>
                     ${isLansia ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">Lansia (${age} Thn)</span>` : (age ? `<span class="text-slate-400 font-normal">(${age} Thn)</span>` : '')}
                 </div>
             </td>
-            <td class="py-3 px-3 font-semibold text-slate-900 text-xs sm:text-sm truncate" title="${row.nama_decrypted}">
-                <span class="cursor-pointer hover:text-blue-600 hover:underline transition" onclick="copyToClipboard('${safeNama}', event)" title="Klik untuk salin Nama: ${safeNama}">${row.nama_decrypted}</span>
+            <td class="py-3 px-3 font-semibold text-slate-900 text-xs sm:text-sm truncate" title="${eNama}">
+                <span class="cursor-pointer hover:text-blue-600 hover:underline transition" onclick="copyToClipboard('${safeNama}', event)" title="Klik untuk salin Nama: ${safeNama}">${eNama}</span>
             </td>
             <td class="py-3 px-3 text-xs overflow-hidden">
-                <div class="font-normal text-slate-700 uppercase truncate" title="${(row.alamat_decrypted || '-').toUpperCase()}">${(row.alamat_decrypted || "-").toUpperCase()}</div>
+                <div class="font-normal text-slate-700 uppercase truncate" title="${eAlamatAtauDash}">${eAlamatAtauDash}</div>
                 <div class="mt-1">${rwBadge}</div>
             </td>
             <td class="py-3 px-3 overflow-hidden">
@@ -548,9 +560,9 @@ function renderUI() {
                         <i data-lucide="trash-2" class="w-3.5 h-3.5 shrink-0"></i>
                         <span>Hapus</span>
                     </button>
-                    <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan status ARSIP' : 'Arsipkan Berkas (kecualikan dari cetak RW)')}" class="${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'bg-purple-600 hover:bg-purple-700 text-white font-bold' : 'bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 font-bold'} px-1.5 py-1.5 rounded-lg text-[11px] shadow-2xs flex items-center justify-center gap-1 transition active:scale-95">
-                        <i data-lucide="${arsipLocked ? 'lock' : 'archive'}" class="w-3.5 h-3.5 shrink-0"></i>
-                        <span>${isArsip ? "ARSIP" : "Arsip"}</span>
+                    <button onclick="toggleArsip(${row.id})" ${arsipLocked ? 'disabled' : ''} title="${arsipLocked ? 'Berkas sudah diserahterimakan — tidak dapat diarsipkan' : (isArsip ? 'Batalkan ARSIP — kembalikan ke antrean aktif' : 'Arsipkan Berkas (kecualikan dari cetak RW)')}" class="${arsipLocked ? 'opacity-40 cursor-not-allowed ' : ''}${isArsip ? 'bg-amber-500 hover:bg-amber-600 text-white border border-amber-500 font-bold' : 'bg-white hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 font-bold'} px-1.5 py-1.5 rounded-lg text-[11px] shadow-2xs flex items-center justify-center gap-1 transition active:scale-95">
+                        <i data-lucide="${arsipLocked ? 'lock' : (isArsip ? 'undo-2' : 'archive')}" class="w-3.5 h-3.5 shrink-0"></i>
+                        <span>${isArsip ? "Batal Arsip" : "Arsip"}</span>
                     </button>
                 </div>
             </td>
