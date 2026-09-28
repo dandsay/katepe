@@ -23,9 +23,9 @@ test('daftar modul frontend beku: tepat 11 file, tanpa file baru/liar', () => {
   ]);
 });
 
-test('daftar modul backend beku: router + 4 routes + 2 utils', () => {
+test('daftar modul backend beku: router + 5 routes + 2 utils', () => {
   const routes = readdirSync(new URL('../src/routes/', import.meta.url)).filter((f) => f.endsWith('.js')).sort();
-  assert.deepEqual(routes, ['auth.js', 'berkas.js', 'laporan.js', 'stats.js']);
+  assert.deepEqual(routes, ['auth.js', 'berkas.js', 'laporan.js', 'stats.js', 'verify-rw.js']);
   const utils = readdirSync(new URL('../src/utils/', import.meta.url)).filter((f) => f.endsWith('.js')).sort();
   assert.deepEqual(utils, ['auth-crypto.js', 'response.js']);
   const index = readSrc('index.js');
@@ -34,6 +34,8 @@ test('daftar modul backend beku: router + 4 routes + 2 utils', () => {
   assert.match(index, /handleStats/);
   assert.match(index, /handleLaporanBulanan/);
   assert.match(index, /handleUnsyncAll/);
+  assert.match(index, /handleCreateVerify/);
+  assert.match(index, /handleGetVerify/);
 });
 
 test('parameter kripto klien beku: AES-GCM-256 + PBKDF2 50.000 + salt + NIK hash', () => {
@@ -92,7 +94,7 @@ test('skema zero-knowledge beku: nik_hash + 3 kolom *_encrypted + unik komposit'
 
 test('permukaan API stabil: endpoint inti ada di router', () => {
   const index = readSrc('index.js');
-  for (const ep of ['/api/auth/verify', '/api/stats', '/api/laporan-bulanan', '/api/berkas', '/api/berkas/unsync-all', '/api/berkas/batch']) {
+  for (const ep of ['/api/auth/verify', '/api/stats', '/api/laporan-bulanan', '/api/berkas', '/api/berkas/unsync-all', '/api/berkas/batch', '/api/verify-rw']) {
     assert.ok(index.includes(ep), `endpoint ${ep} wajib ada`);
   }
   assert.match(index, /startsWith\("\/api\/berkas\/"\)/);
@@ -273,6 +275,18 @@ test('auth backend beku: PIN verify + bruteforce delay + Bearer helper', () => {
   assert.match(frontend, /AppCrypto\.deriveKey/);
 });
 
+test('tombol SYNC/BELUM eksklusif filter ARSIP & BELUM (PENDING)', () => {
+  const t = readJS('table-renderer.js');
+  assert.match(t, /syncEditable/);
+  assert.match(t, /activeJenis === "ARSIP"/);
+  assert.match(t, /currentStatusFilter === "PENDING"/);
+  // Di luar konteks itu: hilang total, tanpa label statis sisa
+  assert.ok(!/Status pencocokan fisik/.test(t), 'tanpa label statis sisa');
+  const s = readJS('sync-status.js');
+  assert.match(s, /Ubah status SYNC\/BELUM hanya tersedia di filter ARSIP & BELUM/);
+  assert.ok(!/Math\.random\s*\(/.test(s), 'sync-status tanpa Math.random()');
+});
+
 test('konfigurasi wrangler beku: binding DB + assets ./public', () => {
   const w = readRoot('wrangler.jsonc');
   assert.match(w, /"binding": "DB"/);
@@ -280,4 +294,50 @@ test('konfigurasi wrangler beku: binding DB + assets ./public', () => {
   assert.match(w, /"directory": "\.\/public"/);
   assert.match(w, /"binding": "ASSETS"/);
   assert.match(w, /"main": "src\/index\.js"/);
+});
+
+test('verifikasi QR laporan RW: tabel snapshot 7 hari + token tak tertebak', () => {
+  const schema = readRoot('schema.sql');
+  assert.ok(schema.includes('verifikasi_rw'), 'tabel verifikasi_rw wajib ada');
+  assert.match(schema, /payload_json/);
+  assert.match(schema, /content_hash/);
+  assert.match(schema, /expires_at/);
+  const v = readSrc('routes/verify-rw.js');
+  assert.match(v, /handleCreateVerify/);
+  assert.match(v, /handleGetVerify/);
+  assert.match(v, /cleanupExpiredVerify/);
+  assert.match(v, /VERIFY_TTL_MS/);
+  assert.match(v, /7 \* 24 \* 3600 \* 1000/);
+  assert.match(v, /randomUUID\(\).replace/);
+  // Smart reuse: hash sama + belum expired → token lama + sliding expiry
+  assert.match(v, /reused: true/);
+  assert.match(v, /reused: false/);
+  assert.match(v, /existing\.content_hash === contentHash/);
+  assert.match(v, /UPDATE verifikasi_rw SET payload_json/);
+  assert.match(v, /DELETE FROM verifikasi_rw WHERE rw = \? AND jenis = \?/);
+  assert.match(v, /410/);
+  assert.match(v, /contact_wa/);
+  // Tanpa PII penuh: hanya mask yang disimpan, tanpa kolom encrypted di tabel verify
+  assert.ok(!/nik_encrypted/.test(v), 'route verify tidak boleh menyentuh ciphertext PII');
+  const index = readSrc('index.js');
+  assert.match(index, /isPublicVerifyGet/);
+  assert.match(index, /scheduled/);
+  assert.match(index, /cleanupExpiredVerify/);
+  const w = readRoot('wrangler.jsonc');
+  assert.match(w, /crons/);
+  const p = readJS('print-rw.js');
+  assert.match(p, /createVerifyToken/);
+  assert.match(p, /\/api\/verify-rw/);
+  // Banner gabungan: PENTING + QR kanan, bahasa tenang tanpa label norak
+  assert.match(p, /PENTING - HARAP DIBACA/);
+  assert.match(p, /Pindai kode QR di samping untuk memeriksa data diri Anda/);
+  assert.match(p, /Pindai untuk cek data/);
+  assert.match(p, /new QRCode/);
+  assert.ok(!/TERVERIFIKASI/.test(p), 'banner baru tanpa label TERVERIFIKASI');
+  assert.ok(!/HASH /.test(p), 'hash tampil tanpa kata HASH');
+  assert.ok(!/Math\.random\s*\(/.test(v), 'route verify tanpa Math.random()');
+  assert.ok(!/Math\.random\s*\(/.test(p), 'print-rw tanpa Math.random()');
+  // Halaman publik: WA kelurahan bisa diklik
+  const vh = readRoot('public/verify.html');
+  assert.ok(vh.includes('http://wa.me/6282147702966'), 'WA kelurahan wajib bisa diklik');
 });

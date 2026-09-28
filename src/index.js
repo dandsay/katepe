@@ -10,6 +10,7 @@ import { verifySessionToken } from "./utils/auth-crypto.js";
 import { handleAuthVerify } from "./routes/auth.js";
 import { handleStats } from "./routes/stats.js";
 import { handleLaporanBulanan } from "./routes/laporan.js";
+import { handleCreateVerify, handleGetVerify, cleanupExpiredVerify } from "./routes/verify-rw.js";
 import {
     handleGetBerkas,
     handleCreateBerkas,
@@ -35,7 +36,10 @@ export default {
         const url = new URL(request.url);
 
         // 2. Security Check for API routes (Session Token Gatekeeper)
-        if (url.pathname.startsWith("/api/") && url.pathname !== "/api/auth/verify") {
+        // Pengecualian publik: /api/auth/verify + GET /api/verify-rw/:token (QR warga).
+        // POST /api/verify-rw tetap wajib Bearer (staf saja).
+        const isPublicVerifyGet = request.method === "GET" && url.pathname.startsWith("/api/verify-rw/");
+        if (url.pathname.startsWith("/api/") && url.pathname !== "/api/auth/verify" && !isPublicVerifyGet) {
             let authorized = false;
 
             // Otorisasi Resmi: Authorization Header (Bearer Session Token HMAC-SHA256)
@@ -67,6 +71,15 @@ export default {
         // 3.4 Rekap Laporan Bulanan
         if (url.pathname === "/api/laporan-bulanan" && request.method === "GET") {
             return handleLaporanBulanan(request, env, url);
+        }
+
+        // 3.45 Verifikasi Publik Laporan RW (QR 7 hari, snapshot mask)
+        if (url.pathname === "/api/verify-rw" && request.method === "POST") {
+            return handleCreateVerify(request, env);
+        }
+        if (url.pathname.startsWith("/api/verify-rw/") && request.method === "GET") {
+            const token = decodeURIComponent(url.pathname.split("/")[3] || "");
+            return handleGetVerify(request, env, token);
         }
 
         // 3.5 Berkas: Batch Upsert — DIMATIKAN PERMANEN (410 Gone).
@@ -104,5 +117,10 @@ export default {
         }
 
         return new Response("Not Found", { status: 404 });
+    },
+
+    // Cron harian: bersihkan tautan verifikasi QR yang lewat 7 hari
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(cleanupExpiredVerify(env));
     }
 };

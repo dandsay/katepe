@@ -1,9 +1,40 @@
 /**
  * Modul Cetak Rekapitulasi Berkas per RW
  * Mengelompokkan berkas per RW, mengecualikan ARSIP, dan mencetak dengan format identik Google Apps Script
+ * + Banner verifikasi QR pojok kiri bawah (snapshot mask 7 hari, 1 token per RW).
  */
 
-function printReport() {
+async function createVerifyToken(rw, jenis, rows) {
+    try {
+        const headers = Object.assign({ "Content-Type": "application/json" },
+            (typeof getAuthHeaders === "function" ? getAuthHeaders() : {}));
+        const res = await fetch("/api/verify-rw", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ rw: String(rw), jenis, rows })
+        });
+        const json = await res.json();
+        if (json && json.success && json.token) return json;
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+function shortHash(h) {
+    if (!h) return "-";
+    return String(h).substring(0, 16).toUpperCase();
+}
+
+function formatExpiry(iso) {
+    try {
+        return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    } catch {
+        return iso || "-";
+    }
+}
+
+async function printReport() {
     // Mode ARSIP: cetak laporan RW dibekukan
     if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") {
         showToast("Cetak Laporan RW tidak tersedia di mode ARSIP.", "error");
@@ -31,6 +62,7 @@ function printReport() {
     // Urutkan Kunci RW secara Numerik (001, 002, dst)
     const sortedRWs = Object.keys(grouped).sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999));
 
+    const jenisNorm = activeJenis === "KIA" ? "KIA" : "KTP";
     const typeText = activeJenis === "KIA" ? "KIA" : "E-KTP";
     const currentYear = new Date().getFullYear();
     const yearText = `TAHUN ${currentYear}`;
@@ -48,9 +80,42 @@ function printReport() {
         minute: '2-digit'
     }).replace('.', ':');
 
-    // 2. Bangun Tampilan Dokumen per RW
-    sortedRWs.forEach((rw, index) => {
+    showToast("Menyiapkan tautan verifikasi QR...", "info");
+
+    // 2. Bangun Tampilan Dokumen per RW (buat token verifikasi dulu per RW)
+    const pages = [];
+    for (const rw of sortedRWs) {
         const rows = grouped[rw];
+
+        // Snapshot mask — sama persis dengan yang tercetak di tabel
+        const snapshot = rows.map((row, i) => {
+            let maskedNik = row.nik_decrypted || "";
+            if (maskedNik.length > 10) {
+                maskedNik = maskedNik.substring(0, 6) + "******" + maskedNik.substring(12);
+            }
+            const isSent = row.tgl_ambil && row.tgl_ambil.trim() !== "";
+            return {
+                no: i + 1,
+                nik_mask: maskedNik,
+                nama: (row.nama_decrypted || "").toUpperCase(),
+                alamat: (row.alamat_decrypted || "-").toUpperCase(),
+                tgl_datang: row.tgl_datang ? formatDate(row.tgl_datang) : "-",
+                status: isSent ? "Telah diterima Pemohon" : "Di Kelurahan"
+            };
+        });
+
+        const verify = await createVerifyToken(rw, jenisNorm, snapshot);
+        pages.push({ rw, rows, snapshot, verify });
+    }
+
+    if (pages.some(p => !p.verify)) {
+        showToast("Sebagian QR verifikasi gagal dibuat — laporan tetap dicetak tanpa QR pada RW terkait.", "error");
+    } else if (pages.length > 0 && pages.every(p => p.verify.reused)) {
+        showToast("Data tidak berubah — menggunakan tautan verifikasi yang sama.", "info");
+    }
+
+    // 3. Render per RW
+    pages.forEach(({ rw, rows, verify }, index) => {
         const pageDiv = document.createElement("div");
         pageDiv.className = "print-section";
         if (index > 0) pageDiv.classList.add("page-break");
@@ -119,10 +184,42 @@ function printReport() {
             `;
         }
 
-        const footerHtml = `
-            <div style="margin-top: 24px; border-top: 2px solid black; padding-top: 14px; color: black; font-family: 'Times New Roman', serif;">
-                <!-- Kotak Catatan Merah Garis Putus-Putus -->
-                <div style="border: 1.5px dashed #dc2626; background-color: #fffafb; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+        // Banner gabungan: catatan penting + verifikasi QR di SISI KANAN.
+        // Bahasa tenang (tanpa label norak), hash kecil di bawah QR tanpa kata HASH.
+        const qrId = `qr-verify-${String(rw).replace(/[^0-9A-Za-z]/g, "")}-${index}`;
+        let infoBanner = "";
+        if (verify && verify.token) {
+            const verifyUrl = window.location.origin + verify.url_path;
+            infoBanner = `
+                <div style="margin-top: 24px; border: 1.5px solid black; border-radius: 8px; padding: 12px; display: flex; gap: 14px; font-family: 'Times New Roman', serif; page-break-inside: avoid;">
+                    <div style="flex: 1; min-width: 0;">
+                        <p style="color: #dc2626; font-weight: bold; margin: 0 0 4px 0; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">
+                            ⚠️ PENTING - HARAP DIBACA:
+                        </p>
+                        <p style="color: #1e293b; margin: 0; font-size: 11px; line-height: 1.6;">
+                            <strong>CATATAN:</strong><br>
+                            ${warningPoints}
+                        </p>
+                        <div style="border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 8px;">
+                            <p style="font-size: 11px; margin: 0; color: #1e293b; line-height: 1.6;">
+                                Pindai kode QR di samping untuk memeriksa data diri Anda pada laporan RW ${escapeHtml(rw)} (${escapeHtml(typeText)}, ${rows.length} berkas) di laman verifikasi kelurahan.
+                            </p>
+                            <p style="font-size: 10px; margin: 4px 0 0 0; color: #475569; line-height: 1.5;">
+                                Dicetak ${escapeHtml(dateStr)} ${escapeHtml(timeStr)} • Berlaku s/d ${escapeHtml(formatExpiry(verify.expires_at))} •
+                                Info: WA kelurahan 0821 4770 2966 / Penyelia RW ${escapeHtml(rw)}.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0; text-align: center;">
+                        <div id="${qrId}" data-verify-url="${escapeHtml(verifyUrl)}" style="width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; border: 1px solid #cbd5e1; padding: 4px; background: white;"></div>
+                        <div style="font-family: monospace; font-size: 8px; color: #64748b; margin-top: 4px;">${escapeHtml(shortHash(verify.content_hash))}</div>
+                        <div style="font-size: 8px; color: #475569; margin-top: 2px;">Pindai untuk cek data</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            infoBanner = `
+                <div style="margin-top: 24px; border: 1.5px solid black; border-radius: 8px; padding: 12px; font-family: 'Times New Roman', serif;">
                     <p style="color: #dc2626; font-weight: bold; margin: 0 0 4px 0; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">
                         ⚠️ PENTING - HARAP DIBACA:
                     </p>
@@ -130,26 +227,34 @@ function printReport() {
                         <strong>CATATAN:</strong><br>
                         ${warningPoints}
                     </p>
+                    <p style="font-size: 10px; margin: 8px 0 0 0; color: #64748b;">Kode QR verifikasi tidak tersedia untuk RW ${escapeHtml(rw)} — dicetak ${escapeHtml(dateStr)} ${escapeHtml(timeStr)}. Info: WA 0821 4770 2966.</p>
                 </div>
+            `;
+        }
 
-                <!-- Info Kontak Kelurahan & Penyelia RW -->
-                <div style="text-align: center; margin-top: 10px;">
-                    <p style="color: #dc2626; font-weight: bold; font-size: 11.5px; margin: 0;">
-                        * Info Lebih lanjut hubungi WA kelurahan 0821 4770 2966 atau Penyelia RW ${escapeHtml(rw)}
-                    </p>
-                </div>
-
-                <!-- System Log & Timestamp Ditengah Bawah -->
-                <div style="text-align: center; margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-                    <p style="font-family: monospace; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">
-                        * GENERATED AUTOMATICALLY BY TIM PEMERINTAHAN AAC - ${dateStr} ${timeStr}
-                    </p>
-                </div>
-            </div>
-        `;
-
-        pageDiv.innerHTML = headerHtml + tableHtml + footerHtml;
+        pageDiv.innerHTML = headerHtml + tableHtml + infoBanner;
         printContainer.appendChild(pageDiv);
+    });
+
+    // Render QR per banner (qrcodejs CDN; fallback tulis URL bila lib gagal)
+    sortedRWs.forEach((rw, index) => {
+        const qrId = `qr-verify-${String(rw).replace(/[^0-9A-Za-z]/g, "")}-${index}`;
+        const el = document.getElementById(qrId);
+        if (!el) return;
+        const url = el.getAttribute("data-verify-url");
+        if (!url) return;
+        try {
+            if (typeof QRCode !== "undefined") {
+                new QRCode(el, { text: url, width: 88, height: 88, correctLevel: QRCode.CorrectLevel.M });
+            } else {
+                el.style.fontSize = "8px";
+                el.style.wordBreak = "break-all";
+                el.textContent = url;
+            }
+        } catch {
+            el.style.fontSize = "8px";
+            el.textContent = url;
+        }
     });
 
     window.print();

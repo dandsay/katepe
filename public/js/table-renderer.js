@@ -95,6 +95,11 @@ function renderUI() {
     const showSync = isSearching || (currentStatusFilter === "PENDING" || currentStatusFilter === "ALL");
     const colSpan = 7 + (showPengambil ? 1 : 0);
 
+    // Tombol SYNC/BELUM eksklusif aktif di filter ARSIP & BELUM (PENDING) saja.
+    // Di luar itu DIHILANGKAN TOTAL (tidak tampil sama sekali).
+    const isArsipJenis = (typeof activeJenis !== "undefined" && activeJenis === "ARSIP");
+    const syncEditable = isArsipJenis || currentStatusFilter === "PENDING";
+
     if (desktopThead) {
         desktopThead.innerHTML = `
             <tr>
@@ -233,8 +238,10 @@ function renderUI() {
                </span>`
             : `${idx + 1}`;
 
-        // Tombol sinkronisasi 1-klik, dipasang tepat di sebelah badge status
-        const syncBtn = row.sinkronisasi === "SYNC"
+        // Tombol sinkronisasi 1-klik, dipasang tepat di sebelah badge status.
+        // Eksklusif filter ARSIP & BELUM; selain itu hilang total.
+        const syncBtn = !syncEditable ? ""
+            : row.sinkronisasi === "SYNC"
             ? `<button type="button" onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Sudah cocok fisik — klik untuk tandai BELUM" class="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition shadow-2xs">
                 <i data-lucide="check-check" class="w-3 h-3 shrink-0"></i>
                 <span>SYNC</span>
@@ -344,7 +351,8 @@ function renderUI() {
         const rwBadge = getRWBadge(row.rw);
         const pengambilBadge = getPengambilBadge(row.hubungan_pengambil, row.tgl_ambil);
 
-        const syncBadge = row.sinkronisasi === "SYNC"
+        const syncBadge = !syncEditable ? ""
+            : row.sinkronisasi === "SYNC"
             ? `<button onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition">SYNC</button>`
             : `<button onclick="toggleSync(${row.id}, '${escapeForJsAttr(row.sinkronisasi)}')" title="Klik untuk ubah status sinkronisasi" class="whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition">BELUM</button>`;
 

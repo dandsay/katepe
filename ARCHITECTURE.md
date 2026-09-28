@@ -10,9 +10,10 @@ Pola dipelajari dari `brankas-esp32` (byte-freeze + gate sebelum deploy).
 |---|---|---|
 | `public/js/*.js` | 11 modul tanpa build (crypto, cipher portal, auth, nik-parser, filter, table, modals, sync, print, laporan, ui) | Daftar file beku; kosmetik (`index.html`/`css`/`img`) tidak dibekukan |
 | `src/*.js` | Router + Bearer gatekeeper + `/api/berkas/batch` 410 + ASSETS fallthrough | Endpoint inti stabil (lihat bawah) |
-| `src/routes/*.js` | 4 route: auth, berkas, stats, laporan | Handler inti tidak boleh hilang/rename diam-diam |
+| `src/routes/*.js` | 5 route: auth, berkas, stats, laporan, verify-rw | Handler inti tidak boleh hilang/rename diam-diam |
 | `src/utils/*.js` | auth-crypto, response | Parameter kripto dipin |
 | D1 `rekap_berkas` | `nik_hash` + 3 kolom `*_encrypted` first-class | Unik komposit `(nik_hash,tgl_datang,jenis_berkas)` dipertahankan |
+| D1 `verifikasi_rw` | Snapshot MASK laporan RW per token (7 hari, tanpa PII penuh) | 1 RW+jenis = 1 token aktif; expired 410 + cron hapus |
 | `tests/` | Gerbang pengaman (node bawaan) | Hijau = syarat deploy |
 | `scripts/freeze.mjs` + `freeze.manifest.json` | SHA-256 per file (21 file) | 1 byte berubah → gate merah → deploy batal |
 
@@ -50,12 +51,14 @@ Pola dipelajari dari `brankas-esp32` (byte-freeze + gate sebelum deploy).
 7. Mode ARSIP selalu tabel TOTAL: masuk ARSIP memaksa status `ALL` (filter
    Diambil/Belum tab sebelumnya tidak terbawa ke kolom tabel), keluar ARSIP
    mengembalikan filter semula; reset filter di mode ARSIP tetap `ALL`.
+8. Tombol SYNC/BELUM eksklusif filter ARSIP & BELUM (`PENDING`): di luar itu
+   dihilangkan total + `toggleSync` menolak via toast.
 
 ## Beku byte-level (ditegakkan kode, bukan tulisan)
 
 `scripts/freeze.mjs` + `freeze.manifest.json`: SHA-256 per file untuk
-`public/js/*.js` (10), `src/**/*.js` (7), `schema.sql`, `wrangler.jsonc`,
-dan skrip freeze itu sendiri (21 file).
+`public/js/*.js` (11), `src/**/*.js` (8), `schema.sql`, `wrangler.jsonc`,
+dan skrip freeze itu sendiri (22 file).
 
 - 1 byte berubah di area beku (termasuk 1 angka) → `--check` exit 1 →
   `npm run gate` merah → `npm run deploy` **batal sebelum wrangler jalan**.
@@ -68,7 +71,7 @@ dan skrip freeze itu sendiri (21 file).
 npm run deploy  =  npm run gate  &&  wrangler deploy
                        |                    |
               npm test + freeze --check   wrangler deploy
-              (17 uji + 21 hash)          (hanya bila gate hijau)
+              (19 uji + 22 hash)          (hanya bila gate hijau)
 ```
 
 - Lokal: `npm run gate` sebelum commit apa pun yang menyentuh kripto/NIK/validasi.
@@ -76,6 +79,22 @@ npm run deploy  =  npm run gate  &&  wrangler deploy
   agar deploy tanpa bukti gate hijau tidak mungkin terjadi.
 - `git push` hanya setelah gate hijau. Sync publik (`scripts/sync-publik.sh`)
   tetap jalan setelahnya; ia menyalin `freeze.manifest.json` apa adanya.
+
+## Verifikasi QR laporan RW (publik 7 hari)
+
+1. Cetak RW (`print-rw.js`) buat snapshot MASK per RW → `POST /api/verify-rw`
+   (Bearer staf) → 1 token 32-hex aktif per RW+jenis.
+2. Smart reuse: hash isi sama + belum expired → token lama dipakai ulang +
+   `expires_at` digeser +7 hari (sliding); isi berubah/expired → token baru,
+   lama gugur. Klik berulang tanpa perubahan = URL sama.
+3. QR di banner gabungan (satu kotak dengan PENTING-HARAP-DIBACA) SISI KANAN
+   tiap halaman RW, isi `https://domain/verify.html?c=<token>`
+   (lib `qrcodejs` CDN di `index.html`). Bahasa tenang: "Pindai kode QR di
+   samping untuk memeriksa data diri Anda"; hash kecil di bawah QR tanpa
+   kata HASH; info cetak + masa berlaku + kontak di kolom yang sama.
+4. Retensi 7 hari: `expires_at = now + 7d`; cron `0 2 * * *` (`scheduled()` +
+   `cleanupExpiredVerify`) + hapus-malas saat baca + hapus oportunistik saat cetak.
+   Tabel `verifikasi_rw` TIDAK menyimpan PII penuh/ciphertext — hanya mask.
 
 ## Yang boleh berubah tanpa mencairkan bekunya
 

@@ -41,3 +41,22 @@ CREATE INDEX IF NOT EXISTS idx_no_urut ON rekap_berkas(no_urut);
 CREATE INDEX IF NOT EXISTS idx_updated_at ON rekap_berkas(updated_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_nik_tgl_jenis ON rekap_berkas(nik_hash, tgl_datang, jenis_berkas);
 
+-- ==============================================================================
+-- Tabel Verifikasi Publik Laporan RW (snapshot mask 7 hari, tanpa PII penuh)
+-- Satu RW + jenis = satu token aktif. Payload HANYA data mask (nik 6******,
+-- nama, alamat, tgl_datang, status). Token 32-hex tak tertebak via QR.
+-- Baris kedaluwarsa dibersihkan cron harian + hapus-malas saat dibaca.
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS verifikasi_rw (
+    token TEXT PRIMARY KEY,
+    rw TEXT NOT NULL,
+    jenis TEXT NOT NULL,                -- 'KTP' | 'KIA' | 'E-KTP'
+    payload_json TEXT NOT NULL,         -- JSON snapshot mask per RW
+    content_hash TEXT NOT NULL,         -- SHA-256 kanonis rows+rw+jenis (16 hex pendek tampil)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL        -- ISO-8601, now + 7 hari
+);
+
+CREATE INDEX IF NOT EXISTS idx_verify_rw_expires ON verifikasi_rw(expires_at);
+CREATE INDEX IF NOT EXISTS idx_verify_rw_rw_jenis ON verifikasi_rw(rw, jenis);
+

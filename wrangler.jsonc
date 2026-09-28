@@ -13,5 +13,8 @@
       "database_name": "ktp-kia-db",
       "database_id": "<DATABASE_ID_D1_ANDA>"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 2 * * *"]
+  }
 }

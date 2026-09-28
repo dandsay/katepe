@@ -4,7 +4,14 @@
  */
 
 // Toggle Status Sinkronisasi Berkas Fisik (SYNC <-> BELUM)
+// Eksklusif aktif di filter ARSIP & BELUM (PENDING); di luar itu dimatikan.
 async function toggleSync(id, currentStatus) {
+    const isArsipJenis = (typeof activeJenis !== "undefined" && activeJenis === "ARSIP");
+    const statusFilter = document.getElementById("selectStatus") ? document.getElementById("selectStatus").value : "";
+    if (!isArsipJenis && statusFilter !== "PENDING") {
+        showToast("Ubah status SYNC/BELUM hanya tersedia di filter ARSIP & BELUM.", "error");
+        return;
+    }
     const newStatus = currentStatus === "SYNC" ? "BELUM" : "SYNC";
     try {
         const res = await fetch(`/api/berkas/${id}`, {
