@@ -1,6 +1,7 @@
 node_modules/
 .wrangler/
 dist/
+pages/
 .env*
 .dev.vars
 worker-configuration.d.ts

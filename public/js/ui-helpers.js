@@ -392,3 +392,31 @@ function updateYearDropdown(years = []) {
     if (prevVal === "ALL") optAll.selected = true;
     sel.appendChild(optAll);
 }
+
+// Cetak dengan judul dokumen sementara. Browser memakai document.title sebagai
+// nama berkas default saat "Simpan sebagai PDF", sehingga tiap cetak punya nama
+// unik (jenis + periode + tanggal/jam) dan tidak menimpa hasil cetak sebelumnya.
+function printWithTitle(title) {
+    const original = document.title;
+    const restore = () => {
+        document.title = original;
+        window.removeEventListener("afterprint", restore);
+    };
+    if (title) document.title = title;
+    window.addEventListener("afterprint", restore);
+    try {
+        window.print();
+    } finally {
+        // Fallback bila event afterprint tidak tersedia/diabaikan
+        setTimeout(restore, 1500);
+    }
+}
+window.printWithTitle = printWithTitle;
+
+// Cap waktu siap-pakai untuk nama berkas cetak: 20260928-1430
+function printStamp(dateObj) {
+    const d = dateObj || new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+window.printStamp = printStamp;

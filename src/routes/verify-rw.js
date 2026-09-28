@@ -71,7 +71,7 @@ export async function handleCreateVerify(request, env) {
                 "UPDATE verifikasi_rw SET payload_json = ?, expires_at = ? WHERE token = ?"
             ).bind(JSON.stringify(rows), refreshed.toISOString(), existing.token).run();
             await env.DB.prepare("DELETE FROM verifikasi_rw WHERE expires_at <= ?").bind(now.toISOString()).run().catch(() => {});
-            return jsonResponse({ success: true, reused: true, token: existing.token, url_path: `/verify.html?c=${existing.token}`, content_hash: contentHash, expires_at: refreshed.toISOString() });
+            return jsonResponse({ success: true, reused: true, token: existing.token, url_path: `/verify?c=${existing.token}`, content_hash: contentHash, expires_at: refreshed.toISOString() });
         }
 
         const token = crypto.randomUUID().replace(/-/g, "");
@@ -86,7 +86,7 @@ export async function handleCreateVerify(request, env) {
         // Bersih-bersih oportunistik: hapus yang sudah lewat (batasi 50 per cetak)
         await env.DB.prepare("DELETE FROM verifikasi_rw WHERE expires_at <= ?").bind(now.toISOString()).run().catch(() => {});
 
-        return jsonResponse({ success: true, reused: false, token, url_path: `/verify.html?c=${token}`, content_hash: contentHash, expires_at: expires.toISOString() });
+        return jsonResponse({ success: true, reused: false, token, url_path: `/verify?c=${token}`, content_hash: contentHash, expires_at: expires.toISOString() });
     } catch (err) {
         console.error("Error create verify:", err);
         return jsonResponse({ success: false, error: "Gagal membuat tautan verifikasi." }, 500);

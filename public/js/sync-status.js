@@ -38,7 +38,9 @@ async function toggleSync(id, currentStatus) {
     }
 }
 
-// Reset Semua Status Pencocokan Berkas Fisik menjadi BELUM
+// Reset Status Pencocokan Berkas Fisik menjadi BELUM
+// Hanya untuk berkas yang lolos FILTER YANG SEDANG DIBUKA (jenis KTP/KIA,
+// tahun, RW, status, sinkronisasi, pencarian) — bukan seluruh jenis sekaligus.
 async function unsyncAll() {
     // Mode ARSIP: reset cek fisik dibekukan (tidak ada konteks jenis KTP/KIA)
     if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") {
@@ -48,11 +50,19 @@ async function unsyncAll() {
     const jenisLabel = activeJenis === "KTP" ? "E-KTP" : "KIA";
     const btn = document.getElementById("btnUnsyncAll");
 
+    // Ambil tepat baris yang sedang tampil pada filter aktif
+    const targets = (typeof filteredData !== "undefined" && Array.isArray(filteredData)) ? filteredData.slice() : [];
+    if (targets.length === 0) {
+        showToast("Tidak ada berkas pada filter yang sedang dibuka untuk direset.", "error");
+        return;
+    }
+    const ids = targets.map((t) => t.id);
+
     openModalKonfirmasi({
-        judul: "Reset Semua Cek Fisik?",
-        subjudul: `Seluruh berkas ${jenisLabel} akan berstatus BELUM.`,
-        isi: `<div class="text-xs leading-relaxed">Status pencocokan fisik <b>semua</b> berkas ${jenisLabel} akan direset menjadi <b>BELUM</b>. Gunakan hanya saat kantor melakukan audit berkas berkala.</div>`,
-        labelYa: "Ya, Reset Semua",
+        judul: "Reset Cek Fisik?",
+        subjudul: `${ids.length} berkas ${jenisLabel} pada filter saat ini akan berstatus BELUM.`,
+        isi: `<div class="text-xs leading-relaxed">Hanya <b>${ids.length} berkas ${jenisLabel}</b> yang sedang tampil pada filter ini yang direset menjadi <b>BELUM</b>. Berkas di luar filter tidak terpengaruh.</div>`,
+        labelYa: "Ya, Reset",
         warna: "amber",
         onYa: async () => {
             const originalHtml = btn ? btn.innerHTML : "";
@@ -60,7 +70,7 @@ async function unsyncAll() {
                 btn.disabled = true;
                 btn.innerHTML = `<div class="spinner border-white border-l-transparent w-3 h-3"></div> <span>Mereset...</span>`;
             }
-            await unsyncAllAPI(jenisLabel);
+            await unsyncAllAPI(jenisLabel, ids);
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -70,19 +80,29 @@ async function unsyncAll() {
     });
 }
 
-async function unsyncAllAPI(jenisLabel) {
+async function unsyncAllAPI(jenisLabel, ids) {
+    const hasIds = Array.isArray(ids) && ids.length > 0;
     try {
         const res = await fetch(`/api/berkas/unsync-all?jenis=${activeJenis}`, {
             method: "POST",
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(hasIds ? { "Content-Type": "application/json" } : {}),
+            body: hasIds ? JSON.stringify({ ids }) : undefined
         });
 
         const data = await res.json();
         if (data.success) {
-            showToast(`Semua status pencocokan fisik ${jenisLabel} direset menjadi BELUM.`, "success");
-            allData.forEach(d => {
-                if (d.jenis_berkas === activeJenis) d.sinkronisasi = "BELUM";
-            });
+            if (hasIds) {
+                const idSet = new Set(ids.map(Number));
+                allData.forEach(d => {
+                    if (idSet.has(Number(d.id))) d.sinkronisasi = "BELUM";
+                });
+                showToast(`${ids.length} berkas pada filter ini direset menjadi BELUM.`, "success");
+            } else {
+                allData.forEach(d => {
+                    if (d.jenis_berkas === activeJenis) d.sinkronisasi = "BELUM";
+                });
+                showToast(`Semua status pencocokan fisik ${jenisLabel} direset menjadi BELUM.`, "success");
+            }
             if (typeof AppCache !== "undefined") {
                 AppCache.set(AppCache.getKey(), allData);
             }

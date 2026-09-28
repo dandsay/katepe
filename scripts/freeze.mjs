@@ -20,9 +20,11 @@ const MANIFEST = new URL('../freeze.manifest.json', import.meta.url);
 // - scripts/freeze.mjs  : skrip ini sendiri (anti-tamper)
 const FROZEN = [
   ...globSync('public/js/*.js'),
+  ...globSync('functions/**/*.js'),
   ...globSync('src/**/*.js'),
   'schema.sql',
   'wrangler.jsonc',
+  'scripts/build-pages.mjs',
   'scripts/freeze.mjs',
 ].sort();
 

@@ -4,6 +4,10 @@
  * + Banner verifikasi QR pojok kiri bawah (snapshot mask 7 hari, 1 token per RW).
  */
 
+// Domain publik (Cloudflare Pages) untuk tautan verifikasi yang dibagikan ke warga.
+// Aplikasi staf tetap di Worker; hanya halaman verifikasi warga yang di Pages ini.
+const VERIFY_PUBLIC_BASE = "https://ktp-kia-aac.pages.dev";
+
 async function createVerifyToken(rw, jenis, rows) {
     try {
         const headers = Object.assign({ "Content-Type": "application/json" },
@@ -189,7 +193,7 @@ async function printReport() {
         const qrId = `qr-verify-${String(rw).replace(/[^0-9A-Za-z]/g, "")}-${index}`;
         let infoBanner = "";
         if (verify && verify.token) {
-            const verifyUrl = window.location.origin + verify.url_path;
+            const verifyUrl = VERIFY_PUBLIC_BASE + verify.url_path;
             infoBanner = `
                 <div style="margin-top: 24px; border: 1.5px solid black; border-radius: 8px; padding: 12px; display: flex; gap: 14px; font-family: 'Times New Roman', serif; page-break-inside: avoid;">
                     <div style="flex: 1; min-width: 0;">
@@ -257,5 +261,189 @@ async function printReport() {
         }
     });
 
-    window.print();
+    // Nama berkas PDF unik: jenis + daftar RW + cap waktu (agar tidak menimpa
+    // hasil cetak sebelumnya saat disimpan sebagai PDF).
+    const rwLabel = sortedRWs.length === 1 ? `RW ${sortedRWs[0]}` : `RW ${sortedRWs[0]}-${sortedRWs[sortedRWs.length - 1]}`;
+    const stamp = typeof printStamp === "function" ? printStamp(now) : "";
+    const printTitle = `Rekap ${typeText} ${rwLabel}${stamp ? " " + stamp : ""}`;
+    if (typeof printWithTitle === "function") {
+        printWithTitle(printTitle);
+    } else {
+        window.print();
+    }
+}
+
+// ============================================================================
+// BAGIKAN TAUTAN KE RW (versi non-PDF / siap salin ke WhatsApp)
+// Tautan dibuat dari snapshot yang identik dengan cetak RW, sehingga token yang
+// dipakai SAMA dengan QR pada lembar cetak (reuse + sliding 7 hari).
+// ============================================================================
+
+var shareRwData = [];
+
+// Snapshot mask — disamakan persis dengan printReport agar hash/token sama.
+function buildShareSnapshot(rows) {
+    return rows.map((row, i) => {
+        let maskedNik = row.nik_decrypted || "";
+        if (maskedNik.length > 10) {
+            maskedNik = maskedNik.substring(0, 6) + "******" + maskedNik.substring(12);
+        }
+        const isSent = row.tgl_ambil && row.tgl_ambil.trim() !== "";
+        return {
+            no: i + 1,
+            nik_mask: maskedNik,
+            nama: (row.nama_decrypted || "").toUpperCase(),
+            alamat: (row.alamat_decrypted || "-").toUpperCase(),
+            tgl_datang: row.tgl_datang ? formatDate(row.tgl_datang) : "-",
+            status: isSent ? "Telah diterima Pemohon" : "Di Kelurahan"
+        };
+    });
+}
+
+// Susun teks pesan WhatsApp per RW (dinamis: menyesuaikan jenis yang ada saja)
+function buildShareMessage(rw, links) {
+    const tanggal = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    const jenisLabel = (links.KTP && links.KIA) ? "KTP dan KIA" : (links.KTP ? "KTP" : "KIA");
+    const lines = [
+        `Bapak/Ibu RW ${rw},`,
+        ``,
+        `Menyampaikan daftar ${jenisLabel} yang sudah dapat diambil di Kelurahan Alun-Alun Contong. Mohon dibantu dicek lalu disampaikan kepada warga terkait, dapat dibuka melalui link berikut:`,
+        ``
+    ];
+    if (links.KTP) lines.push(`🔗 Berkas KTP (E-KTP): ${links.KTP}`);
+    if (links.KIA) lines.push(`🔗 Berkas KIA: ${links.KIA}`);
+    lines.push(``);
+    lines.push(`Terima kasih.`);
+    lines.push(``);
+    lines.push(`> Kelurahan Alun-Alun Contong (Dibuat otomatis, ${tanggal})`);
+    return lines.join("\n");
+}
+
+function renderShareCard(card, index) {
+    const badges = [
+        card.counts.KTP ? `KTP ${card.counts.KTP}` : null,
+        card.counts.KIA ? `KIA ${card.counts.KIA}` : null
+    ].filter(Boolean).join(" • ") || "tidak ada berkas";
+    return `
+        <div class="border border-slate-200 rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-extrabold text-sm text-slate-800 whitespace-nowrap">RW ${escapeHtml(card.rw)}</span>
+                    <span class="text-[11px] text-slate-500 truncate">${badges}</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="copyShareMessageById(${index})" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-bold rounded-lg transition">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>Salin</span>
+                    </button>
+                    <button type="button" onclick="openShareWa(${index})" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white text-[11px] font-bold rounded-lg transition" title="Buka WhatsApp dengan pesan ini">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i><span>WA</span>
+                    </button>
+                </div>
+            </div>
+            <div class="text-[11px] leading-relaxed text-slate-700 p-3 bg-white whitespace-pre-wrap break-words font-mono">${escapeHtml(card.message || "")}</div>
+        </div>
+    `;
+}
+
+async function openModalBagikanTautan() {
+    if (typeof activeJenis !== "undefined" && activeJenis === "ARSIP") {
+        showToast("Bagikan tautan tidak tersedia di mode ARSIP.", "error");
+        return;
+    }
+    const modal = document.getElementById("modalBagikanTautan");
+    const listEl = document.getElementById("bagikanList");
+    if (!modal || !listEl) return;
+
+    // Basis data = berkas yang lolos FILTER/LAPORAN yang sedang dibuka (bukan seluruh
+    // database). Sumbernya sama dengan laporan cetak RW, dipisah per jenis KTP/KIA.
+    const collected = (typeof computeFilteredData === "function")
+        ? [...computeFilteredData("KTP"), ...computeFilteredData("KIA")]
+        : [];
+    const seen = new Set();
+    const valid = [];
+    for (const row of collected) {
+        if (row.hubungan_pengambil === "ARSIP") continue;
+        // Yang disampaikan ke RW = berkas yang BELUM diambil saja
+        if (row.tgl_ambil && String(row.tgl_ambil).trim() !== "") continue;
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        valid.push(row);
+    }
+    if (valid.length === 0) {
+        showToast("Tidak ada berkas yang belum diambil pada filter ini.", "error");
+        return;
+    }
+
+    // Kelompokkan per RW, lalu per jenis berkas (KTP/KIA)
+    const byRw = {};
+    for (const row of valid) {
+        const rw = row.rw ? String(row.rw) : "LAINNYA";
+        const jn = row.jenis_berkas === "KIA" ? "KIA" : "KTP";
+        if (!byRw[rw]) byRw[rw] = { KTP: [], KIA: [] };
+        byRw[rw][jn].push(row);
+    }
+    const sortedRWs = Object.keys(byRw).sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999));
+
+    modal.classList.remove("hidden");
+    listEl.innerHTML = `
+        <div class="py-10 flex flex-col items-center justify-center gap-2">
+            <div class="spinner border-slate-300 border-l-emerald-600"></div>
+            <span class="text-xs text-slate-500 font-medium">Menyiapkan tautan ${sortedRWs.length} RW...</span>
+        </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    try {
+        const cards = await Promise.all(sortedRWs.map(async (rw) => {
+            const groups = byRw[rw];
+            const links = {};
+            for (const jn of ["KTP", "KIA"]) {
+                const rows = groups[jn];
+                if (!rows || rows.length === 0) continue;
+                const verify = await createVerifyToken(rw, jn, buildShareSnapshot(rows));
+                if (verify && verify.url_path) {
+                    links[jn] = VERIFY_PUBLIC_BASE + verify.url_path;
+                }
+            }
+            return { rw, links, counts: { KTP: groups.KTP.length, KIA: groups.KIA.length } };
+        }));
+
+        // Hanya tampilkan RW yang benar-benar punya berkas belum diambil
+        const shown = cards.filter(c => c.links.KTP || c.links.KIA);
+        shown.forEach((c) => { c.message = buildShareMessage(c.rw, c.links); });
+        shareRwData = shown;
+        if (shown.length === 0) {
+            listEl.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs font-semibold">Tidak ada RW dengan berkas belum diambil pada filter ini.</div>`;
+        } else {
+            listEl.innerHTML = shown.map((c, i) => renderShareCard(c, i)).join("");
+        }
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("Gagal menyiapkan tautan RW:", err);
+        listEl.innerHTML = `<div class="p-6 text-center text-rose-500 text-xs font-semibold">Gagal menyiapkan tautan. Coba lagi.</div>`;
+    }
+}
+
+function closeModalBagikanTautan() {
+    const modal = document.getElementById("modalBagikanTautan");
+    if (modal) modal.classList.add("hidden");
+}
+
+function copyShareMessageById(index) {
+    const card = shareRwData[index];
+    if (!card || !card.message) return;
+    const text = card.message;
+    const label = `Pesan RW ${card.rw}`;
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+            .then(() => showToast(`${label} berhasil disalin!`, "success"))
+            .catch(() => fallbackCopy(text, label));
+    } else {
+        fallbackCopy(text, label);
+    }
+}
+
+function openShareWa(index) {
+    const card = shareRwData[index];
+    if (!card || !card.message) return;
+    window.open("https://wa.me/?text=" + encodeURIComponent(card.message), "_blank", "noopener");
 }

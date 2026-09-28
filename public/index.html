@@ -138,6 +138,11 @@
                             <i data-lucide="printer" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Cetak Laporan RW</span>
                         </button>
+                        <!-- Tombol Bagikan Tautan Verifikasi ke RW (versi non-PDF) -->
+                        <button onclick="openModalBagikanTautan()" id="btnBagikanTautan" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center" title="Salin pesan WhatsApp berisi tautan verifikasi untuk RW">
+                            <i data-lucide="share-2" class="w-4 h-4 shrink-0"></i>
+                            <span class="truncate">Bagikan Tautan</span>
+                        </button>
                     </div>
                 </div>
 
@@ -772,6 +777,30 @@
         </div>
     </div>
 
+    <!-- 4.5 MODAL BAGIKAN TAUTAN VERIFIKASI KE RW (versi non-PDF) -->
+    <div id="modalBagikanTautan" onclick="if (event.target === this) closeModalBagikanTautan()" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-6 hidden backdrop-blur-xs">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-5 sm:p-7 border border-slate-200 flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <i data-lucide="share-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-slate-900 text-base sm:text-lg">Bagikan Tautan ke RW</h3>
+                        <p class="text-xs text-slate-500">Salin pesan, lalu tempel ke WhatsApp RW.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModalBagikanTautan()" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="bagikanList" class="overflow-y-auto custom-scrollbar flex-1 py-3 space-y-3">
+                <!-- Diisi oleh JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- 5. PRINT CONTAINER (Laporan Per RW & Laporan Bulanan) -->
     <div id="printContainer" class="hidden"></div>
 
@@ -783,13 +812,13 @@
     <script src="js/crypto.js?v=20260925-xss"></script>
     <script src="js/cipher.js?v=20260926-qwerty"></script>
     <script src="js/nik-parser.js?v=20260925-xss"></script>
-    <script src="js/ui-helpers.js?v=20260925-xss"></script>
+    <script src="js/ui-helpers.js?v=20260928-print"></script>
     <script src="js/auth.js?v=20260925-xss"></script>
-    <script src="js/filter.js?v=20260925-xss"></script>
+    <script src="js/filter.js?v=20260928-belum"></script>
     <script src="js/table-renderer.js?v=20260925-xss"></script>
     <script src="js/modals.js?v=20260925-xss"></script>
-    <script src="js/sync-status.js?v=20260925-xss"></script>
-    <script src="js/print-rw.js?v=20260928-verify"></script>
-    <script src="js/laporan-bulanan.js?v=20260925-xss"></script>
+    <script src="js/sync-status.js?v=20260928-print"></script>
+    <script src="js/print-rw.js?v=20260928-belum"></script>
+    <script src="js/laporan-bulanan.js?v=20260928-print"></script>
 </body>
 </html>

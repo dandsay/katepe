@@ -284,7 +284,9 @@
         `;
 
         setTimeout(() => {
-            window.print();
+            const stamp = typeof printStamp === "function" ? printStamp() : "";
+            const t = `Laporan ${titleType} ${monthNames[selectedMonth - 1]} ${selectedYear}${stamp ? " " + stamp : ""}`;
+            if (typeof printWithTitle === "function") printWithTitle(t); else window.print();
         }, 300);
     };
 
@@ -336,7 +338,9 @@
             `;
 
             setTimeout(() => {
-                window.print();
+                const stamp = typeof printStamp === "function" ? printStamp() : "";
+                const t = `Laporan KTP+KIA ${monthNames[selectedMonth - 1]} ${selectedYear}${stamp ? " " + stamp : ""}`;
+                if (typeof printWithTitle === "function") printWithTitle(t); else window.print();
             }, 400);
 
         } catch (err) {

@@ -158,6 +158,7 @@ function setArsipModeFrozen(isArsip) {
     const wrapperTahun = document.getElementById("wrapperSelectTahun");
     const btnPrint = document.getElementById("btnPrintRW");
     const btnUnsync = document.getElementById("btnUnsyncAll");
+    const btnBagikan = document.getElementById("btnBagikanTautan");
     if (wrapperTahun) {
         wrapperTahun.classList.toggle("opacity-40", isArsip);
         wrapperTahun.classList.toggle("pointer-events-none", isArsip);
@@ -175,6 +176,12 @@ function setArsipModeFrozen(isArsip) {
         btnUnsync.classList.toggle("opacity-40", isArsip);
         btnUnsync.classList.toggle("cursor-not-allowed", isArsip);
         btnUnsync.title = isArsip ? "Reset Cek Fisik tidak tersedia di mode ARSIP" : "Reset status pencocokan berkas fisik menjadi BELUM";
+    }
+    if (btnBagikan) {
+        btnBagikan.disabled = isArsip;
+        btnBagikan.classList.toggle("opacity-40", isArsip);
+        btnBagikan.classList.toggle("cursor-not-allowed", isArsip);
+        btnBagikan.title = isArsip ? "Bagikan tautan tidak tersedia di mode ARSIP" : "Salin pesan WhatsApp berisi tautan verifikasi untuk RW";
     }
 }
 
@@ -536,6 +543,116 @@ function updateSortIcons() {
     if (currentSortCol === "tgl_ambil" && iconPengambil) iconPengambil.innerText = arrow;
 }
 
+// Hitung baris yang lolos filter aktif untuk SATU jenis berkas (murni, tanpa render).
+// Dipakai bersama oleh tabel (applyClientFilters) dan fitur "Bagikan Tautan" agar
+// hasilnya 100% sama dengan laporan cetak (snapshot QR identik → token di-reuse).
+function computeFilteredData(jenis) {
+    const selectRWEl = document.getElementById("selectRW");
+    const rw = selectRWEl ? selectRWEl.value : (selectedRW || "ALL");
+    const statusEl = document.getElementById("selectStatus");
+    const status = statusEl ? statusEl.value : "ALL";
+    const syncEl = document.getElementById("selectSync");
+    const sync = syncEl ? syncEl.value : "ALL";
+    const searchEl = document.getElementById("searchInput");
+    const search = (searchEl ? searchEl.value : "").toLowerCase().trim();
+    const isSearching = (search.length > 0);
+    const isArsipMode = (jenis === "ARSIP");
+
+    const rows = allData.filter(item => {
+        // MODE PENCARIAN UNIVERSAL BEBAS (di atas semua filter)
+        if (isSearching) {
+            const nama = (item.nama_decrypted || "").toLowerCase();
+            const nik = (item.nik_decrypted || "").toLowerCase();
+            const alamat = (item.alamat_decrypted || "").toLowerCase();
+            const ket = (item.keterangan || "").toLowerCase();
+            const hub = (item.hubungan_pengambil || "").toLowerCase();
+            const jns = (item.jenis_berkas || "").toLowerCase();
+            const rwStr = `rw ${item.rw} rw${item.rw} ${item.rw}`;
+            return (
+                nama.includes(search) ||
+                nik.includes(search) ||
+                alamat.includes(search) ||
+                ket.includes(search) ||
+                hub.includes(search) ||
+                jns.includes(search) ||
+                rwStr.includes(search)
+            );
+        }
+
+        const isArsip = (item.hubungan_pengambil === "ARSIP");
+
+        // MODE ARSIP: gabungan KTP+KIA berstatus ARSIP, semua tahun
+        if (isArsipMode) {
+            if (!isArsip) return false;
+            if (rw !== "ALL" && String(item.rw) !== rw) return false;
+            if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
+            return true;
+        }
+
+        // MODE NORMAL
+        if (isArsip) return false;
+        if (item.jenis_berkas && item.jenis_berkas !== jenis) return false;
+
+        const isSent = item.tgl_ambil && item.tgl_ambil.trim() !== "";
+        if (activeYear !== "ALL" && item.tgl_datang) {
+            const itemYear = item.tgl_datang.substring(0, 4);
+            if (isSent) {
+                if (itemYear !== activeYear) return false;
+            } else {
+                if (itemYear > activeYear) return false;
+            }
+        }
+
+        if (filter17Active && item.keterangan !== "Perekaman Baru 17 Tahun") return false;
+        if (rw !== "ALL" && String(item.rw) !== rw) return false;
+        if (status === "SENT" && !isSent) return false;
+        if (status === "PENDING" && isSent) return false;
+        if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
+
+        return true;
+    });
+
+    rows.sort((a, b) => {
+        if (currentSortCol === "rw") {
+            const rwA = parseInt(a.rw) || 0;
+            const rwB = parseInt(b.rw) || 0;
+            if (rwA !== rwB) {
+                return currentSortDir === "asc" ? rwA - rwB : rwB - rwA;
+            }
+            const tglA = a.tgl_datang || "";
+            const tglB = b.tgl_datang || "";
+            if (tglA !== tglB) return tglB.localeCompare(tglA);
+            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
+        } else if (currentSortCol === "tgl_ambil") {
+            const tA = a.tgl_ambil || "";
+            const tB = b.tgl_ambil || "";
+            if (tA !== tB) {
+                return currentSortDir === "asc" ? tA.localeCompare(tB) : tB.localeCompare(tA);
+            }
+            const tdA = a.tgl_datang || "";
+            const tdB = b.tgl_datang || "";
+            if (tdA !== tdB) return tdB.localeCompare(tdA);
+            const rwA = parseInt(a.rw) || 0;
+            const rwB = parseInt(b.rw) || 0;
+            if (rwA !== rwB) return rwA - rwB;
+            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
+        } else {
+            const tglA = a.tgl_datang || "";
+            const tglB = b.tgl_datang || "";
+            if (tglA !== tglB) {
+                return currentSortDir === "asc" ? tglA.localeCompare(tglB) : tglB.localeCompare(tglA);
+            }
+            const rwA = parseInt(a.rw) || 0;
+            const rwB = parseInt(b.rw) || 0;
+            if (rwA !== rwB) return rwA - rwB;
+            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
+        }
+    });
+
+    return rows;
+}
+window.computeFilteredData = computeFilteredData;
+
 // Terapkan Filter & Urutan Data di Browser
 function applyClientFilters(resetPage = true, allowOnDemand = true) {
     if (resetPage) {
@@ -589,128 +706,9 @@ function applyClientFilters(resetPage = true, allowOnDemand = true) {
         }
     }
 
-    const isArsipMode = (typeof activeJenis !== "undefined" && activeJenis === "ARSIP");
-
-    // 1. Filter Data
-    filteredData = allData.filter(item => {
-        // MODE PENCARIAN UNIVERSAL BEBAS (BERADA DI LANGIT - PRIORITAS UTAMA):
-        // Tidak dibatasi oleh filter RW, Status Pengambilan (Ambil/Belum), Sync, 17 Tahun, Jenis Tab (KTP/KIA/ARSIP), dan Tahun!
-        if (isSearching) {
-            const nama = (item.nama_decrypted || "").toLowerCase();
-            const nik = (item.nik_decrypted || "").toLowerCase();
-            const alamat = (item.alamat_decrypted || "").toLowerCase();
-            const ket = (item.keterangan || "").toLowerCase();
-            const hub = (item.hubungan_pengambil || "").toLowerCase();
-            const jenis = (item.jenis_berkas || "").toLowerCase();
-            const rwStr = `rw ${item.rw} rw${item.rw} ${item.rw}`;
-
-            return (
-                nama.includes(search) || 
-                nik.includes(search) || 
-                alamat.includes(search) || 
-                ket.includes(search) ||
-                hub.includes(search) ||
-                jenis.includes(search) ||
-                rwStr.includes(search)
-            );
-        }
-
-        const isArsip = (item.hubungan_pengambil === "ARSIP");
-
-        // MODE ARSIP (Ketika kolom pencarian KOSONG):
-        // Gabungan KTP+KIA yang berstatus ARSIP, SEMUA TAHUN (abaikan tahun, jenis, status, 17 tahun)
-        if (isArsipMode) {
-            if (!isArsip) return false;
-
-            // D. Filter RW (tetap berlaku)
-            if (rw !== "ALL" && String(item.rw) !== rw) return false;
-
-            // F. Filter Sinkronisasi (tetap berlaku)
-            if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
-
-            return true;
-        }
-
-        // MODE FILTER NORMAL (Ketika kolom pencarian KOSONG):
-        // Kembali ke settingan terakhir: jenis tab (KTP/KIA), tahun, 17 tahun, RW, status, dan sync
-        // Arsip keluar dari antrean aktif → disembunyikan dari tab KTP/KIA, hanya tampil di tab ARSIP.
-
-        // A0. Kecualikan ARSIP dari tab normal
-        if (isArsip) {
-            return false;
-        }
-
-        // A. Filter Jenis Berkas (Tab E-KTP vs KIA)
-        if (item.jenis_berkas && item.jenis_berkas !== activeJenis) {
-            return false;
-        }
-
-        // B. Filter Tahun
-        const isSent = item.tgl_ambil && item.tgl_ambil.trim() !== "";
-        if (activeYear !== "ALL" && item.tgl_datang) {
-            const itemYear = item.tgl_datang.substring(0, 4);
-            if (isSent) {
-                if (itemYear !== activeYear) return false;
-            } else {
-                if (itemYear > activeYear) return false;
-            }
-        }
-
-        // C. Filter Perekaman Baru 17 Tahun
-        if (filter17Active && item.keterangan !== "Perekaman Baru 17 Tahun") {
-            return false;
-        }
-
-        // D. Filter RW
-        if (rw !== "ALL" && String(item.rw) !== rw) return false;
-
-        // E. Filter Status Pengambilan
-        if (status === "SENT" && !isSent) return false;
-        if (status === "PENDING" && isSent) return false;
-
-        // F. Filter Status Pencocokan Fisik (SYNC / BELUM)
-        if (sync !== "ALL" && item.sinkronisasi !== sync) return false;
-
-        return true;
-    });
-
-    // 2. Multi-tier Sorting:
-    filteredData.sort((a, b) => {
-        if (currentSortCol === "rw") {
-            const rwA = parseInt(a.rw) || 0;
-            const rwB = parseInt(b.rw) || 0;
-            if (rwA !== rwB) {
-                return currentSortDir === "asc" ? rwA - rwB : rwB - rwA;
-            }
-            const tglA = a.tgl_datang || "";
-            const tglB = b.tgl_datang || "";
-            if (tglA !== tglB) return tglB.localeCompare(tglA);
-            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
-        } else if (currentSortCol === "tgl_ambil") {
-            const tA = a.tgl_ambil || "";
-            const tB = b.tgl_ambil || "";
-            if (tA !== tB) {
-                return currentSortDir === "asc" ? tA.localeCompare(tB) : tB.localeCompare(tA);
-            }
-            const tdA = a.tgl_datang || "";
-            const tdB = b.tgl_datang || "";
-            if (tdA !== tdB) return tdB.localeCompare(tdA);
-            const rwA = parseInt(a.rw) || 0;
-            const rwB = parseInt(b.rw) || 0;
-            if (rwA !== rwB) return rwA - rwB;
-            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
-        } else {
-            const tglA = a.tgl_datang || "";
-            const tglB = b.tgl_datang || "";
-            if (tglA !== tglB) {
-                return currentSortDir === "asc" ? tglA.localeCompare(tglB) : tglB.localeCompare(tglA);
-            }
-            const rwA = parseInt(a.rw) || 0;
-            const rwB = parseInt(b.rw) || 0;
-            if (rwA !== rwB) return rwA - rwB;
-            return (a.nama_decrypted || "").localeCompare(b.nama_decrypted || "");
-        }
-    });
+    // 1 & 2. Filter + urutkan dipusatkan di computeFilteredData agar identik
+    // dengan fitur "Bagikan Tautan" dan laporan cetak per RW.
+    filteredData = computeFilteredData(activeJenis);
 
     renderUI();
     updateFilterUIState();

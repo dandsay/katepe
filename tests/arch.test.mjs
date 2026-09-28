@@ -338,6 +338,6 @@ test('verifikasi QR laporan RW: tabel snapshot 7 hari + token tak tertebak', () 
   assert.ok(!/Math\.random\s*\(/.test(v), 'route verify tanpa Math.random()');
   assert.ok(!/Math\.random\s*\(/.test(p), 'print-rw tanpa Math.random()');
   // Halaman publik: WA kelurahan bisa diklik
-  const vh = readRoot('public/verify.html');
+  const vh = readRoot('warga/verify.html');
   assert.ok(vh.includes('http://wa.me/6282147702966'), 'WA kelurahan wajib bisa diklik');
 });

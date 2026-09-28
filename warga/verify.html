@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>Verifikasi Laporan RW | Kelurahan Alun-Alun Contong</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="img/logo-surabaya.svg">
+    <style>
+        html { -webkit-text-size-adjust: 100%; }
+        /* Mobile: tabel panjang (6 kolom) diubah jadi kartu per warga agar tidak perlu geser horizontal */
+        @media (max-width: 640px) {
+            .rt thead { display: none; }
+            .rt, .rt tbody, .rt tr, .rt td { display: block; width: 100%; }
+            .rt tbody { padding: 10px; }
+            .rt tr {
+                display: flex;
+                flex-direction: column;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                padding: 10px 12px;
+                margin-bottom: 10px;
+                background: #ffffff;
+            }
+            .rt tr:last-child { margin-bottom: 0; }
+            .rt td {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 14px;
+                padding: 3px 0;
+                border: 0;
+                text-align: right;
+                word-break: break-word;
+            }
+            .rt td::before {
+                content: attr(data-label);
+                flex: 0 0 auto;
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: #94a3b8;
+                text-align: left;
+            }
+            .rt td.cell-title {
+                order: -1;
+                justify-content: flex-start;
+                text-align: left;
+                font-size: 13px;
+                font-weight: 800;
+                text-transform: uppercase;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 8px;
+                margin-bottom: 4px;
+            }
+            .rt td.cell-title::before { display: none; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+    <nav class="bg-slate-900 text-white">
+        <div class="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2.5 sm:gap-3">
+            <img src="img/logo-surabaya.svg" alt="Logo" class="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0">
+            <div class="min-w-0">
+                <h1 class="font-extrabold text-[13px] sm:text-sm tracking-wide truncate">VERIFIKASI LAPORAN RW</h1>
+                <p class="text-[10px] sm:text-[11px] text-slate-300 font-semibold tracking-wider truncate">KELURAHAN ALUN-ALUN CONTONG</p>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 w-full max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div id="stateLoading" class="bg-white border border-slate-200 rounded-2xl p-8 text-center">
+            <div class="mx-auto mb-3 h-8 w-8 rounded-full border-2 border-slate-300 border-t-indigo-600 animate-spin"></div>
+            <p class="text-sm text-slate-500 font-medium">Memeriksa tautan verifikasi...</p>
+        </div>
+
+        <div id="stateValid" class="hidden">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 sm:p-4 mb-3 sm:mb-4 flex gap-3 items-center">
+                <div class="text-2xl leading-none shrink-0">✓</div>
+                <p class="font-extrabold text-emerald-800 text-sm uppercase tracking-wide">Terverifikasi</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <h2 id="verifyTitle" class="font-extrabold text-[15px] sm:text-base uppercase break-words"></h2>
+                    <p id="verifySub" class="text-[11px] text-slate-500 font-mono mt-0.5 break-all"></p>
+                </div>
+                <table class="rt w-full text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">
+                            <th class="p-2.5 text-center w-10">No</th>
+                            <th class="p-2.5 text-center">NIK</th>
+                            <th class="p-2.5 text-left">Nama</th>
+                            <th class="p-2.5 text-left">Alamat</th>
+                            <th class="p-2.5 text-center">Tgl Datang</th>
+                            <th class="p-2.5 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifyRows" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="mt-3 sm:mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p class="text-[11px] font-extrabold uppercase tracking-wide text-rose-700 mb-1.5">⚠️ Penting - Harap Dibaca</p>
+                <ul id="verifyWarning" class="list-disc space-y-1 pl-4 text-[12px] leading-relaxed text-slate-700"></ul>
+            </div>
+
+            <p class="text-center text-[11px] text-slate-400 mt-4">Data mask sesuai lembar cetak.</p>
+            <a href="http://wa.me/6282147702966" target="_blank" rel="noopener" class="mt-3 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm sm:text-base py-3.5 px-4 rounded-2xl shadow transition text-center leading-relaxed">
+                <span>Klik disini untuk WA Kelurahan <span class="whitespace-nowrap">082147702966</span></span>
+            </a>
+        </div>
+
+        <div id="stateInvalid" class="hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                <div class="bg-gradient-to-b from-amber-50 via-amber-50/40 to-white px-6 pt-9 pb-7 text-center">
+                    <div class="mx-auto mb-4 h-16 w-16 rounded-2xl bg-amber-100 text-amber-600 ring-[6px] ring-amber-50 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8">
+                            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                    <h2 id="invalidTitle" class="font-extrabold text-lg text-slate-900">Tautan kedaluwarsa</h2>
+                    <p id="invalidDesc" class="text-sm text-slate-500 mt-2 leading-relaxed max-w-sm mx-auto">Tautan ini sudah lewat masa berlaku 7 hari dan otomatis dihapus demi keamanan data.</p>
+                </div>
+
+                <div class="px-5 pb-6">
+                    <a href="http://wa.me/6282147702966" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm sm:text-base py-3.5 px-4 rounded-2xl shadow transition text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                        </svg>
+                        <span>Hubungi Kelurahan</span>
+                    </a>
+                    <p class="text-center text-[11px] text-slate-400 mt-3 leading-relaxed">Minta petugas mencetak ulang laporan terbaru, lalu pindai QR yang baru.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center text-[11px] text-slate-400 pb-6 px-4">
+        <p id="verifyFooter" class="mb-1"></p>
+        <p class="font-mono uppercase tracking-wide">Tim Pemerintahan AAC - 2026</p>
+    </footer>
+
+    <script>
+        function esc(s) {
+            return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+
+        // Peringatan identik dengan banner cetak PDF (per jenis berkas)
+        function warningList(jenis) {
+            if (jenis === "KIA") {
+                return [
+                    "Bagi pemohon cetak ulang KIA karena rusak harap <strong>membawa KIA lama</strong>.",
+                    "Penerima/pengambil yang bukan bersangkutan harap <strong>menunjukkan Kartu Keluarga (KK) / KTP orang tua</strong>."
+                ];
+            }
+            return [
+                "Bagi pemohon cetak ulang KTP karena rusak harap <strong>membawa KTP lama</strong>.",
+                "Penerima/pengambil yang bukan bersangkutan harap <strong>menunjukkan KTP penerima/pengambil</strong>."
+            ];
+        }
+
+        async function main() {
+            const params = new URLSearchParams(location.search);
+            const token = (params.get("c") || "").trim();
+            const loading = document.getElementById("stateLoading");
+            const valid = document.getElementById("stateValid");
+            const invalid = document.getElementById("stateInvalid");
+
+            function showInvalid(title, desc) {
+                loading.classList.add("hidden");
+                valid.classList.add("hidden");
+                invalid.classList.remove("hidden");
+                if (title) document.getElementById("invalidTitle").textContent = title;
+                if (desc) document.getElementById("invalidDesc").textContent = desc;
+            }
+
+            if (!/^[0-9a-f]{32}$/.test(token)) {
+                showInvalid("Tautan tidak dikenal", "Kode verifikasi tidak valid atau tautan salah. Silakan pindai ulang QR pada lembar cetak resmi.", null);
+                return;
+            }
+            try {
+                const res = await fetch("/api/verify-rw/" + encodeURIComponent(token));
+                const json = await res.json();
+                if (!json.success) {
+                    const expired = res.status === 410 || json.expired;
+                    showInvalid(
+                        expired ? "Tautan kedaluwarsa" : "Tautan tidak dikenal",
+                        expired
+                            ? "Tautan ini sudah lewat masa berlaku 7 hari dan otomatis dihapus demi keamanan data. Silakan minta petugas mencetak ulang laporan terbaru."
+                            : "Tautan verifikasi tidak ditemukan. Pastikan tautan/QR berasal dari lembar cetak resmi Kelurahan.",
+                        json.rw || null
+                    );
+                    return;
+                }
+                loading.classList.add("hidden");
+                invalid.classList.add("hidden");
+                valid.classList.remove("hidden");
+                const typeText = json.jenis === "KIA" ? "KIA" : "E-KTP";
+                document.getElementById("verifyTitle").textContent = `Rekap ${typeText} — RW ${json.rw}`;
+                const shortHash = String(json.content_hash || "").substring(0, 7);
+                document.getElementById("verifySub").textContent = `${(json.rows || []).length} berkas${shortHash ? ` - ${shortHash}` : ""}`;
+                document.getElementById("verifyWarning").innerHTML = warningList(json.jenis).map((w) => `<li>${w}</li>`).join("");
+                const created = json.created_at ? new Date(json.created_at) : null;
+                if (created) {
+                    const tglLapor = created.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+                    const jamLapor = created.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
+                    document.getElementById("verifyFooter").textContent = `Laporan dibuat ${tglLapor} pukul ${jamLapor} WIB`;
+                }
+                document.getElementById("verifyRows").innerHTML = (json.rows || []).map((r) => `
+                    <tr>
+                        <td data-label="No" class="p-2.5 text-center font-mono">${esc(r.no)}</td>
+                        <td data-label="NIK" class="p-2.5 text-center font-mono">${esc(r.nik_mask)}</td>
+                        <td data-label="Nama" class="cell-title p-2.5 text-left font-bold uppercase">${esc(r.nama)}</td>
+                        <td data-label="Alamat" class="p-2.5 text-left uppercase">${esc(r.alamat)}</td>
+                        <td data-label="Tgl Datang" class="p-2.5 text-center whitespace-nowrap">${esc(r.tgl_datang)}</td>
+                        <td data-label="Status" class="p-2.5 text-center">${esc(r.status)}</td>
+                    </tr>`).join("");
+            } catch (e) {
+                showInvalid("Gagal memuat", "Koneksi bermasalah. Silakan coba lagi atau hubungi kelurahan.", null);
+            }
+        }
+        main();
+    </script>
+</body>
+</html>

@@ -88,7 +88,7 @@ npm run deploy  =  npm run gate  &&  wrangler deploy
    `expires_at` digeser +7 hari (sliding); isi berubah/expired → token baru,
    lama gugur. Klik berulang tanpa perubahan = URL sama.
 3. QR di banner gabungan (satu kotak dengan PENTING-HARAP-DIBACA) SISI KANAN
-   tiap halaman RW, isi `https://domain/verify.html?c=<token>`
+   tiap halaman RW, isi `https://ktp-kia-aac.pages.dev/verify?c=<token>` (halaman warga, Cloudflare Pages)
    (lib `qrcodejs` CDN di `index.html`). Bahasa tenang: "Pindai kode QR di
    samping untuk memeriksa data diri Anda"; hash kecil di bawah QR tanpa
    kata HASH; info cetak + masa berlaku + kontak di kolom yang sama.

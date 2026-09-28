@@ -330,9 +330,34 @@ export async function handleDeleteBerkas(request, env, id) {
     }
 }
 
-// 5. POST /api/berkas/unsync-all (Reset Semua Status Sinkronisasi)
+// 5. POST /api/berkas/unsync-all (Reset Status Sinkronisasi)
+// Body opsional: { ids: [..] } → reset HANYA berkas pada filter aktif.
+// Tanpa body → fallback lama: reset per jenis (?jenis=) atau seluruh berkas.
 export async function handleUnsyncAll(request, env, url) {
     try {
+        let ids = null;
+        try {
+            const body = await request.json();
+            if (body && Array.isArray(body.ids)) {
+                ids = body.ids.map(Number).filter((n) => Number.isFinite(n));
+            }
+        } catch {
+            // Tidak ada body JSON — pakai mode lama
+        }
+
+        if (ids && ids.length > 0) {
+            // D1 membatasi jumlah parameter per kueri; pecah per 90 id.
+            const CHUNK = 90;
+            for (let i = 0; i < ids.length; i += CHUNK) {
+                const part = ids.slice(i, i + CHUNK);
+                const placeholders = part.map(() => "?").join(",");
+                await env.DB.prepare(
+                    `UPDATE rekap_berkas SET sinkronisasi = 'BELUM', updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
+                ).bind(...part).run();
+            }
+            return jsonResponse({ success: true, count: ids.length, message: "Berkas pada filter berhasil di-unsync" });
+        }
+
         const jenis = url.searchParams.get("jenis");
         let query = "UPDATE rekap_berkas SET sinkronisasi = 'BELUM', updated_at = CURRENT_TIMESTAMP";
         const params = [];

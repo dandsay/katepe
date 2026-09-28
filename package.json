@@ -31,6 +31,8 @@
     "freeze": "node scripts/freeze.mjs",
     "gate": "npm test && node scripts/freeze.mjs --check",
     "deploy": "npm run gate && wrangler deploy",
+    "pages:deploy": "node scripts/build-pages.mjs && wrangler pages deploy pages --project-name=ktp-kia-aac --branch=main",
+    "deploy:all": "npm run deploy && npm run pages:deploy",
     "types": "wrangler types",
     "d1:local": "wrangler d1 execute ktp-kia-db --local --file=./schema.sql",
     "d1:remote": "wrangler d1 execute ktp-kia-db --remote --file=./schema.sql"
