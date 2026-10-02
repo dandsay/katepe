@@ -112,8 +112,12 @@ export default {
         }
 
         // 4. Static Assets Fallthrough (Frontend UI)
+        // Anti-crawler: semua aset statis diberi X-Robots-Tag agar tidak diindeks.
         if (env.ASSETS) {
-            return env.ASSETS.fetch(request);
+            const res = await env.ASSETS.fetch(request);
+            const headers = new Headers(res.headers);
+            headers.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex");
+            return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
         }
 
         return new Response("Not Found", { status: 404 });

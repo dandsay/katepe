@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
     <title>Database KTP & KIA | Kelurahan Alun-Alun Contong</title>
     
-    <!-- Tailwind CSS & Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="icon" type="image/svg+xml" href="img/logo-surabaya.svg">
     <link rel="stylesheet" href="css/style.css?v=20260923-v6">
 
-    <!-- Anti-Flicker Session Check: Mencegah portal login berkedip saat refresh -->
     <script>
         if (sessionStorage.getItem("ktp_app_pin")) {
             document.documentElement.classList.add("has-session");
@@ -26,7 +27,6 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <!-- 1. MODAL LOGIN PORTAL -->
     <div id="loginModal" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl max-w-xs sm:max-w-sm w-full p-5 sm:p-6 border border-slate-200 text-center animate-in fade-in zoom-in-95 duration-150">
             <div class="w-12 h-12 mx-auto mb-3 flex items-center justify-center p-2 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
@@ -61,10 +61,8 @@
         </div>
     </div>
 
-    <!-- 2. MAIN APP CONTENT -->
     <div id="mainApp" class="flex-1 flex flex-col hidden">
         
-        <!-- NAVBAR -->
         <nav class="bg-slate-900 text-white sticky top-0 z-30 border-b border-slate-800 shadow-md">
             <div class="max-w-[1600px] 2xl:max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-16">
@@ -76,10 +74,8 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- DROPDOWN TAHUN MINIMALIS [2026 ▼] -->
                         <div id="wrapperSelectTahun" class="relative flex items-center transition-opacity duration-200">
                             <select id="selectTahun" onchange="changeTahun(this.value)" class="appearance-none bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold pl-2.5 pr-6 py-2 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition shadow-2xs" title="Pilih Tahun">
-                                <!-- Terisi otomatis dinamis dari database -->
                             </select>
                             <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-1.5 pointer-events-none"></i>
                         </div>
@@ -92,13 +88,10 @@
             </div>
         </nav>
 
-        <!-- MAIN CONTAINER -->
         <main class="max-w-[1600px] 2xl:max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-5">
             
-            <!-- CONTROL & FILTER PANEL -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <!-- Tab Pemilihan Berkas & Tombol Segarkan -->
                     <div class="flex items-center gap-2 sm:gap-3">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
                             <span class="text-xs sm:text-sm font-bold text-slate-700 tracking-wide shrink-0">BERKAS:</span>
@@ -109,36 +102,29 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <!-- Refresh -->
                             <button onclick="loadData(true)" id="btnRefreshData" title="Segarkan Data (Bypass Cache)" class="p-2.5 text-slate-500 hover:text-blue-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition active:scale-95 shadow-2xs">
                                 <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Tombol Aksi di Mobile & Desktop -->
                     <div class="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full lg:w-auto">
-                        <!-- Tombol Tambah Berkas (Hanya Desktop) -->
                         <button onclick="openModalTambah()" class="hidden sm:flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center">
                             <i data-lucide="plus" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Tambah Berkas</span>
                         </button>
-                        <!-- Tombol Reset Cek Fisik -->
                         <button onclick="unsyncAll()" id="btnUnsyncAll" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center" title="Reset status pencocokan berkas fisik menjadi BELUM">
                             <i data-lucide="rotate-ccw" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Reset Cek Fisik</span>
                         </button>
-                        <!-- Tombol Laporan Bulanan -->
                         <button onclick="openModalLaporanBulanan()" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center" title="Rekap Laporan Bulanan KTP & KIA">
                             <i data-lucide="file-text" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Laporan Bulanan</span>
                         </button>
-                        <!-- Tombol Cetak PDF Laporan Per RW (Exclude ARSIP) -->
                         <button onclick="printReport()" id="btnPrintRW" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center">
                             <i data-lucide="printer" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Cetak Laporan RW</span>
                         </button>
-                        <!-- Tombol Bagikan Tautan Verifikasi ke RW (versi non-PDF) -->
                         <button onclick="openModalBagikanTautan()" id="btnBagikanTautan" class="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all text-center" title="Salin pesan WhatsApp berisi tautan verifikasi untuk RW">
                             <i data-lucide="share-2" class="w-4 h-4 shrink-0"></i>
                             <span class="truncate">Bagikan Tautan</span>
@@ -146,7 +132,6 @@
                     </div>
                 </div>
 
-                <!-- Search Bar & Mobile Filter Trigger (from ui_mobile.html) -->
                 <div class="pt-3 border-t border-slate-100">
                     <div class="flex items-center gap-2">
                         <div class="relative flex-1">
@@ -160,7 +145,6 @@
                             </button>
                         </div>
 
-                        <!-- Filter Drawer Trigger Button (Mobile) -->
                         <button type="button" onclick="openFilterModal()" id="btnOpenFilterModal" class="sm:hidden flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 shadow-2xs transition shrink-0 relative" title="Buka Filter Spesifik">
                             <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-600"></i>
                             <span>Filter</span>
@@ -169,19 +153,15 @@
                     </div>
                 </div>
 
-                <!-- Secondary Filters: Inline di Desktop (sm:grid), Bottom Sheet Drawer di Mobile (< sm) -->
                 <div id="filterModal" onclick="if (event.target === this) closeFilterModal()" class="hidden sm:!block fixed inset-0 sm:static z-50 sm:z-auto bg-slate-900/50 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none flex items-end sm:items-stretch justify-center p-0 sm:p-0 transition-opacity">
                     <div class="bg-white w-full max-w-md sm:max-w-none rounded-t-3xl sm:rounded-none p-5 sm:p-0 shadow-2xl sm:shadow-none space-y-3.5 sm:space-y-0 transition-transform duration-300">
-                        <!-- Drawer Drag Handle (Mobile only) -->
                         <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto sm:hidden mb-1"></div>
 
-                        <!-- Header Modal (Hanya Tampil di Mobile) -->
                         <div class="flex sm:hidden items-center justify-between pb-2 border-b border-slate-100">
                             <h3 class="font-bold text-slate-800 text-sm">Filter Spesifik Data</h3>
                             <button type="button" onclick="resetFilters()" class="text-xs text-blue-600 font-semibold hover:underline">Reset Filter</button>
                         </div>
 
-                        <!-- Dropdowns Grid (2 Kolom di Desktop: Wilayah RW & Sinkronisasi) -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0 sm:pt-3 border-t-0 sm:border-t border-slate-100 text-xs sm:text-sm">
                             <div>
                                 <label class="block font-medium text-slate-500 mb-1">Wilayah RW</label>
@@ -204,10 +184,8 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- Status Pengambilan Tersembunyi (Dikelola Penuh via 4 Card Statistik) -->
                         <input type="hidden" id="selectStatus" value="PENDING">
 
-                        <!-- Tombol Terapkan (Mobile Only) -->
                         <button type="button" onclick="closeFilterModal()" class="w-full mt-2 sm:hidden bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold py-2.5 rounded-xl shadow-md transition text-xs">
                             Terapkan Filter
                         </button>
@@ -215,7 +193,6 @@
                 </div>
             </div>
 
-            <!-- SINGLE LINE COMPACT STATS ROW (Sekaligus Filter Utama yang Tegas) -->
             <div id="filterCardContainer" class="grid grid-cols-4 gap-2 sm:gap-3 text-center transition-opacity duration-200">
                 <div id="cardStatTotal" onclick="filterByCard('ALL')" class="stat-card relative bg-white hover:bg-slate-50 border border-slate-200/90 rounded-xl py-2 sm:py-3 px-1.5 sm:px-3 cursor-pointer transition select-none shadow-xs" title="Filter: Tampilkan Semua Berkas">
                     <div class="flex items-center justify-center gap-1.5 mb-1">
@@ -247,7 +224,6 @@
                 </div>
             </div>
 
-            <!-- Active Search Info Banner -->
             <div id="searchInfoBanner" class="hidden bg-slate-100 border border-slate-200 text-slate-800 px-4 py-2 rounded-xl text-xs font-medium flex items-center justify-between gap-3 shadow-2xs animate-in fade-in transition">
                 <div class="flex items-center gap-2">
                     <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 shrink-0"></i>
@@ -258,7 +234,6 @@
                 </button>
             </div>
 
-            <!-- Notifikasi & Saran Deep Search (Aktif jika tidak ditemukan di memori tahun aktif) -->
             <div id="searchDeepPromptBanner" class="hidden bg-amber-50 border border-amber-200 text-amber-950 px-4 py-3 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200">
                 <div class="flex items-start sm:items-center gap-2.5">
                     <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0"></i>
@@ -275,7 +250,6 @@
                 </div>
             </div>
 
-            <!-- Deep Search In-Progress Banner -->
             <div id="searchOnDemandBanner" class="hidden bg-blue-50 border border-blue-200 text-blue-900 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-3 shadow-xs">
                 <div class="flex items-center gap-2.5">
                     <div class="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
@@ -286,16 +260,13 @@
                 </button>
             </div>
 
-            <!-- DATA VIEW: MOBILE CARDS + DESKTOP TABLE -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[350px]">
                 
-                <!-- Loading Overlay -->
                 <div id="loadingOverlay" class="hidden absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center">
                     <div class="spinner border-slate-300 border-l-blue-600 mb-2"></div>
                     <span class="text-xs text-slate-500 font-medium animate-pulse">Mendekripsi & memuat data...</span>
                 </div>
 
-                <!-- Mobile List Header Toolbar (Buka Semua / Tutup Semua) -->
                 <div class="flex md:hidden items-center justify-between px-3.5 py-2 bg-slate-50 border-b border-slate-200/80 text-xs">
                     <span id="mobileCountInfo" class="font-bold text-slate-700">Daftar Berkas</span>
                     <button type="button" onclick="toggleAllMobileCards()" id="btnToggleAllCards" class="text-blue-600 hover:text-blue-800 font-extrabold flex items-center gap-1 active:scale-95 transition" title="Buka atau tutup seluruh kartu rincian">
@@ -304,24 +275,18 @@
                     </button>
                 </div>
 
-                <!-- Mobile Card List View (Visible on < md) -->
                 <div id="mobileList" class="block md:hidden p-3 space-y-2 bg-slate-50/50">
-                    <!-- Dynamic Cards injected by JS -->
                 </div>
 
-                <!-- Desktop Table View (Visible on md+) -->
                 <div class="hidden md:block overflow-x-auto custom-scrollbar">
                     <table class="w-full min-w-[1240px] table-fixed text-left border-collapse">
                         <thead id="desktopThead" class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                            <!-- Injected dynamically by JS -->
                         </thead>
                         <tbody id="desktopTableBody" class="divide-y divide-slate-100 text-xs">
-                            <!-- Dynamic Rows injected by JS -->
                         </tbody>
                     </table>
                 </div>
 
-                <!-- PAGINATION CONTROLS (RESPONSIVE UNTUK MOBILE & DESKTOP) -->
                 <div id="paginationContainer" class="bg-slate-50 border-t border-slate-200/90 px-4 py-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                     <div class="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3 text-slate-600 font-medium">
                         <span id="pageInfo">Menampilkan 1-10 dari 0 data</span>
@@ -348,7 +313,6 @@
 
         </main>
 
-        <!-- FLOATING ACTION BUTTON (HANYA MOBILE) -->
         <button onclick="openModalTambah()" 
             id="fabTambahBerkas"
             aria-label="Tambah Berkas" 
@@ -358,7 +322,6 @@
             <span class="text-sm font-bold tracking-wide pr-0.5">Tambah Berkas</span>
         </button>
 
-        <!-- FOOTER RESMI KELURAHAN & SUMBER TERBUKA (OPEN SOURCE) -->
         <footer class="mt-auto py-5 text-center text-xs text-slate-500 font-medium border-t border-slate-200/80 bg-white/50">
             <div class="max-w-[1600px] 2xl:max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-600">
                 <p>Dikembangkan oleh Tim Pemerintahan Kelurahan Alun-Alun Contong &bull; 2026</p>
@@ -376,7 +339,6 @@
         </footer>
     </div>
 
-    <!-- 3. MODAL SERAHKAN / AMBIL BERKAS (QUICK ACTION) -->
     <div id="modalPengambilan" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
@@ -424,7 +386,6 @@
                     </button>
                 </div>
 
-                <!-- Tombol Batalkan Pengambilan (Hanya aktif jika status sudah diambil) -->
                 <div id="wrapperBatalAmbil" class="hidden pt-2 border-t border-slate-100">
                     <button type="button" onclick="executeBatalPengambilan()" id="btnBatalAmbil" class="w-full py-2.5 bg-rose-50 hover:bg-rose-100 active:scale-98 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs flex items-center justify-center gap-2">
                         <i data-lucide="undo-2" class="w-4 h-4 text-rose-600"></i>
@@ -435,9 +396,6 @@
         </div>
     </div>
 
-    <!-- 4. MODAL TAMBAH BERKAS BARU -->
-    <!-- 3.9 MODAL PERINGATAN DUPLIKAT AKTIF (Opsi A) -->
-    <!-- MODAL KONFIRMASI GENERIK (pengganti confirm() browser) -->
     <div id="modalKonfirmasi" class="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-start gap-3 pb-4 border-b border-slate-100 mb-4">
@@ -527,7 +485,6 @@
                     <label class="font-bold text-slate-700 block mb-1.5 text-xs sm:text-sm">NIK (16 Digit) <span class="text-rose-500">*</span></label>
                     <input type="text" id="inputNIK" maxlength="16" inputmode="numeric" oninput="onNIKInputChange()" placeholder="3578..." 
                         class="w-full p-3 font-mono text-sm sm:text-base font-bold tracking-wider bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition" required>
-                    <!-- Info Ekstraksi NIK Otomatis -->
                     <div id="nikPreviewBox" class="mt-2 p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 hidden space-y-1 font-medium"></div>
                 </div>
 
@@ -565,7 +522,6 @@
         </div>
     </div>
 
-    <!-- 4.1 MODAL EDIT BERKAS (Koreksi Data / Typo) -->
     <div id="modalEdit" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-7 border border-slate-200 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
@@ -600,7 +556,6 @@
                     <label class="font-bold text-slate-700 block mb-1.5 text-xs sm:text-sm">NIK (16 Digit) <span class="text-rose-500">*</span></label>
                     <input type="text" id="editNIK" maxlength="16" inputmode="numeric" oninput="onEditNIKChange()" placeholder="3578..." 
                         class="w-full p-3 font-mono text-sm sm:text-base font-bold tracking-wider bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition" required>
-                    <!-- Info Ekstraksi NIK Otomatis -->
                     <div id="editNikPreviewBox" class="mt-2 p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 hidden space-y-1 font-medium"></div>
                 </div>
 
@@ -638,7 +593,6 @@
         </div>
     </div>
 
-    <!-- 4.1 MODAL KONFIRMASI HAPUS (WAJIB KETIK NIK) -->
     <div id="modalHapus" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-7 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
@@ -679,11 +633,9 @@
         </div>
     </div>
 
-    <!-- 7. MODAL GENERATE LAPORAN BULANAN (PORTING GAS) -->
     <div id="modalLaporanBulanan" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-6 hidden backdrop-blur-xs overflow-y-auto">
         <div class="bg-white rounded-3xl shadow-2xl max-w-5xl w-full p-5 sm:p-7 border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-auto flex flex-col max-h-[92vh]">
             
-            <!-- Modal Header -->
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
@@ -699,10 +651,8 @@
                 </button>
             </div>
 
-            <!-- Modal Content (Scrollable) -->
             <div class="overflow-y-auto custom-scrollbar flex-1 py-4 space-y-4">
                 
-                <!-- Info Box Cara Kerja Sistem -->
                 <div class="bg-amber-50/90 border border-amber-200/80 p-4 rounded-2xl flex items-start gap-3 text-xs leading-relaxed text-amber-900">
                     <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
                     <div>
@@ -716,7 +666,6 @@
                     </div>
                 </div>
 
-                <!-- Filter Controls -->
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-wrap gap-4 items-end justify-between">
                     <div class="flex flex-wrap gap-3 items-end">
                         <div>
@@ -729,7 +678,6 @@
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Pilih Tahun</label>
                             <select id="lapYearSelect" class="text-sm font-bold px-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition">
-                                <!-- Populated dynamically -->
                             </select>
                         </div>
                         <div>
@@ -767,9 +715,7 @@
                     </div>
                 </div>
 
-                <!-- Screen Table Container -->
                 <div id="lapTableContainer" class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-2xl">
-                    <!-- Injected by JS -->
                 </div>
 
             </div>
@@ -777,7 +723,6 @@
         </div>
     </div>
 
-    <!-- 4.5 MODAL BAGIKAN TAUTAN VERIFIKASI KE RW (versi non-PDF) -->
     <div id="modalBagikanTautan" onclick="if (event.target === this) closeModalBagikanTautan()" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-6 hidden backdrop-blur-xs">
         <div class="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-5 sm:p-7 border border-slate-200 flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
@@ -796,18 +741,14 @@
             </div>
 
             <div id="bagikanList" class="overflow-y-auto custom-scrollbar flex-1 py-3 space-y-3">
-                <!-- Diisi oleh JS -->
             </div>
         </div>
     </div>
 
-    <!-- 5. PRINT CONTAINER (Laporan Per RW & Laporan Bulanan) -->
     <div id="printContainer" class="hidden"></div>
 
-    <!-- 6. FLOATING TOAST NOTIFICATION CONTAINER -->
     <div id="toastContainer" class="fixed bottom-20 right-5 sm:bottom-6 sm:right-6 z-50 pointer-events-none flex flex-col gap-2"></div>
 
-    <!-- Modular Application Scripts (dengan Cache Buster) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="js/crypto.js?v=20260925-xss"></script>
     <script src="js/cipher.js?v=20260926-qwerty"></script>
